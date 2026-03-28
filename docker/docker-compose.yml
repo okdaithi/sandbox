@@ -3,19 +3,35 @@ version: '3.8'
 services:
   db:
     image: postgres:15
+    env_file:
+      - .env
     environment:
-      POSTGRES_DB: scenario_planning
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ../database/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7-alpine
+    command: redis-server --appendonly yes
     ports:
       - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   backend:
     build:
@@ -23,18 +39,26 @@ services:
       dockerfile: ../docker/backend.Dockerfile
     ports:
       - "5000:5000"
+    env_file:
+      - .env
     environment:
-      DATABASE_URL: postgresql://user:password@db:5432/scenario_planning
-      REDIS_URL: redis://redis:6379
-      JWT_SECRET: your_jwt_secret_here
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      NODE_ENV: ${NODE_ENV:-development}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   frontend:
     build:
       context: ../frontend
       dockerfile: ../docker/frontend.Dockerfile
+      args:
+        REACT_APP_API_URL: ${FRONTEND_URL:-http://localhost:5000}
     ports:
       - "3000:3000"
     depends_on:
@@ -42,3 +66,4 @@ services:
 
 volumes:
   postgres_data:
+  redis_data:

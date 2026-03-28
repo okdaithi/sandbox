@@ -1,151 +1,94 @@
+require('dotenv').config();
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
 const cors = require('cors');
 const helmet = require('helmet');
-const { Pool } = require('pg');
-const redis = require('redis');
+const compression = require('compression');
 const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs');
-require('dotenv').config();
+const cookieParser = require('cookie-parser');
+const logger = require('./middleware/logger');
 
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || "http://localhost:3000",
-    methods: ["GET", "POST"]
+    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    methods: ['GET', 'POST'],
+    credentials: true
   }
 });
 
-// Database connection
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
-
-// Redis client
-const redisClient = redis.createClient({
-  url: process.env.REDIS_URL || 'redis://localhost:6379'
-});
-redisClient.connect();
+// Expose io instance on app for use in route handlers
+app.set('io', io);
 
 // Middleware
 app.use(helmet());
-app.use(cors());
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  credentials: true
+}));
+app.use(compression());
 app.use(express.json());
-
-// Auth middleware
-const authenticateToken = (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-  if (!token) return res.sendStatus(401);
-
-  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
-    if (err) return res.sendStatus(403);
-    req.user = user;
-    next();
-  });
-};
+app.use(cookieParser());
 
 // Routes
-app.post('/api/auth/login', async (req, res) => {
-  const { username, password } = req.body;
+app.use('/api/auth', require('./routes/auth'));
+app.use('/api/scenarios', require('./routes/scenarios'));
+app.use('/api/sessions', require('./routes/sessions'));
+
+// Socket.io auth middleware — verify JWT before allowing connection
+io.use((socket, next) => {
+  const token = socket.handshake.auth?.token;
+  if (!token) return next(new Error('Authentication required'));
   try {
-    const result = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
-    if (result.rows.length === 0) return res.status(400).json({ error: 'User not found' });
-
-    const user = result.rows[0];
-    if (!await bcrypt.compare(password, user.password_hash)) {
-      return res.status(400).json({ error: 'Invalid password' });
-    }
-
-    const token = jwt.sign({ id: user.id, username: user.username, role: user.role }, process.env.JWT_SECRET);
-    res.json({ token });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
+    const user = jwt.verify(token, process.env.JWT_SECRET);
+    socket.user = user;
+    next();
+  } catch {
+    next(new Error('Invalid or expired token'));
   }
 });
 
-app.post('/api/auth/register', async (req, res) => {
-  const { username, password, role } = req.body;
-  try {
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const result = await pool.query(
-      'INSERT INTO users (username, password_hash, role) VALUES ($1, $2, $3) RETURNING id',
-      [username, hashedPassword, role]
-    );
-    res.status(201).json({ id: result.rows[0].id });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-app.get('/api/scenarios', authenticateToken, async (req, res) => {
-  try {
-    const result = await pool.query('SELECT id, name, description FROM scenarios');
-    res.json(result.rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-app.post('/api/sessions', authenticateToken, async (req, res) => {
-  const { scenario_id } = req.body;
-  try {
-    const result = await pool.query(
-      'INSERT INTO sessions (scenario_id, facilitator_id, status) VALUES ($1, $2, $3) RETURNING id',
-      [scenario_id, req.user.id, 'pending']
-    );
-    res.status(201).json({ id: result.rows[0].id });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-app.post('/api/sessions/:id/decisions', authenticateToken, async (req, res) => {
-  const { id } = req.params;
-  const { team_id, decision_data } = req.body;
-  try {
-    await pool.query(
-      'INSERT INTO decisions (session_id, team_id, decision_data, timestamp) VALUES ($1, $2, $3, NOW())',
-      [id, team_id, JSON.stringify(decision_data)]
-    );
-    // Process decision (simplified for MVP)
-    io.to(`session-${id}`).emit('state_updated', { message: 'Decision processed' });
-    res.status(201).json({ message: 'Decision submitted' });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-// Socket.io handling
+// Socket.io event handlers
 io.on('connection', (socket) => {
-  console.log('User connected:', socket.id);
+  logger.info('User connected', { socketId: socket.id, userId: socket.user?.id });
 
   socket.on('join_session', (sessionId) => {
     socket.join(`session-${sessionId}`);
+    logger.info('User joined session', { socketId: socket.id, sessionId });
   });
 
-  socket.on('submit_decision', async (data) => {
-    // Handle real-time decision submission
+  socket.on('submit_decision', (data) => {
     const { sessionId, decision } = data;
-    // Process and emit update
     io.to(`session-${sessionId}`).emit('state_updated', decision);
   });
 
   socket.on('disconnect', () => {
-    console.log('User disconnected:', socket.id);
+    logger.info('User disconnected', { socketId: socket.id });
   });
+});
+
+// Global error handler (must be last middleware)
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+  logger.error('Unhandled error', { err: err.message, stack: err.stack, path: req.path });
+  res.status(err.status || 500).json({ error: 'Internal server error' });
 });
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  logger.info(`Server running on port ${PORT}`);
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  logger.info('SIGTERM received, shutting down gracefully');
+  server.close(() => {
+    const pool = require('./db/pool');
+    pool.end();
+    process.exit(0);
+  });
 });
 
 module.exports = app;
