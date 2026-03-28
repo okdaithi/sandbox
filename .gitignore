@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Environment files — NEVER commit these
+.env
+docker/.env
+**/.env
+
+# Build output
+frontend/build/
+frontend/.next/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db

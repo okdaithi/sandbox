@@ -59,6 +59,17 @@ CREATE TABLE audit_logs (
   timestamp TIMESTAMP DEFAULT NOW()
 );
 
+-- Indexes for foreign key lookups and common filters
+CREATE INDEX idx_sessions_scenario_id ON sessions(scenario_id);
+CREATE INDEX idx_sessions_facilitator_id ON sessions(facilitator_id);
+CREATE INDEX idx_sessions_status ON sessions(status);
+CREATE INDEX idx_teams_session_id ON teams(session_id);
+CREATE INDEX idx_decisions_session_id ON decisions(session_id);
+CREATE INDEX idx_decisions_session_timestamp ON decisions(session_id, timestamp);
+CREATE INDEX idx_decisions_unprocessed ON decisions(processed) WHERE processed = false;
+CREATE INDEX idx_audit_logs_session_id ON audit_logs(session_id);
+CREATE INDEX idx_sessions_current_state ON sessions USING GIN(current_state);
+
 -- Insert sample data
 INSERT INTO scenarios (name, description, initial_state, rules_definition) VALUES
 ('Sample Scenario', 'A basic scenario for testing', '{"phase": "initial"}', '{"rules": []}');
