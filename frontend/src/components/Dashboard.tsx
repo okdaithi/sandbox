@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   Container, Typography, Button, Card, CardContent,
-  TextField, Box, CircularProgress, Alert
+  TextField, Box, CircularProgress, Alert, List, ListItem, ListItemText, Divider
 } from '@mui/material';
 import { io, Socket } from 'socket.io-client';
 import axios from 'axios';
@@ -11,22 +11,31 @@ import { RootState } from '../store';
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 const Dashboard: React.FC = () => {
+  const token = useSelector((state: RootState) => state.auth.token);
   const [socket, setSocket] = useState<Socket | null>(null);
   const [scenarios, setScenarios] = useState<any[]>([]);
   const [currentScenario, setCurrentScenario] = useState<any>(null);
   const [decision, setDecision] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [events, setEvents] = useState<string[]>([]);
   const user = useSelector((state: RootState) => state.auth.user);
 
   useEffect(() => {
     const newSocket = io(API_URL, {
-      withCredentials: true
+      withCredentials: true,
+      auth: { token }
     });
     setSocket(newSocket);
 
     newSocket.on('state_updated', (data) => {
-      console.log('State updated:', data);
+      const history: any[] = data?.history ?? [];
+      const latest = history[history.length - 1];
+      setEvents(prev => [...prev, `Decision processed: ${JSON.stringify(latest ?? data)}`]);
+    });
+
+    newSocket.on('session_status_changed', (data) => {
+      setEvents(prev => [...prev, `Session status changed to: ${data.status}`]);
     });
 
     setLoading(true);
@@ -40,7 +49,15 @@ const Dashboard: React.FC = () => {
     return () => {
       newSocket.close();
     };
-  }, [user]);
+  }, [user, token]);
+
+  const handleSelectScenario = (scenario: any) => {
+    setCurrentScenario(scenario);
+    setEvents([]);
+    if (socket) {
+      socket.emit('join_session', scenario.id);
+    }
+  };
 
   const handleDecisionSubmit = () => {
     if (socket && currentScenario) {
@@ -70,7 +87,7 @@ const Dashboard: React.FC = () => {
               <Typography>{scenario.description}</Typography>
               <Button
                 variant="contained"
-                onClick={() => setCurrentScenario(scenario)}
+                onClick={() => handleSelectScenario(scenario)}
                 sx={{ mt: 1 }}
               >
                 Select Scenario
@@ -93,10 +110,26 @@ const Dashboard: React.FC = () => {
           <Button
             variant="contained"
             onClick={handleDecisionSubmit}
+            disabled={!decision.trim()}
             sx={{ mt: 2 }}
           >
             Submit Decision
           </Button>
+
+          <Divider sx={{ mt: 3, mb: 2 }} />
+
+          <Typography variant="h6" gutterBottom>Recent Activity</Typography>
+          {events.length === 0 ? (
+            <Typography color="text.secondary">No activity yet.</Typography>
+          ) : (
+            <List dense sx={{ maxHeight: 200, overflow: 'auto', bgcolor: 'grey.50', borderRadius: 1 }}>
+              {events.map((ev, i) => (
+                <ListItem key={i}>
+                  <ListItemText primary={ev} />
+                </ListItem>
+              ))}
+            </List>
+          )}
         </Box>
       )}
     </Container>
