@@ -4,7 +4,7 @@ import {
   FormControl, InputLabel, Chip, List, ListItem, ListItemText,
   CircularProgress, Alert, Divider
 } from '@mui/material';
-import { io, Socket } from 'socket.io-client';
+import { io } from 'socket.io-client';
 import axios from 'axios';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
@@ -20,7 +20,6 @@ const STATUS_COLOR: Record<string, 'default' | 'primary' | 'warning' | 'success'
 
 const FacilitatorPanel: React.FC = () => {
   const token = useSelector((state: RootState) => state.auth.token);
-  const [socket, setSocket] = useState<Socket | null>(null);
   const [scenarios, setScenarios] = useState<any[]>([]);
   const [selectedScenario, setSelectedScenario] = useState('');
   const [session, setSession] = useState<any>(null);
@@ -50,8 +49,8 @@ const FacilitatorPanel: React.FC = () => {
       setSession((prev: any) => ({ ...prev, status: data.status }));
       setEvents(prev => [...prev, `Status changed to: ${data.status}`]);
     });
-    setSocket(newSocket);
     return () => { newSocket.close(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.id, token]);
 
   const handleCreateSession = async () => {
