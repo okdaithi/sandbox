@@ -10,6 +10,7 @@ const compression = require('compression');
 const cookieParser = require('cookie-parser');
 const logger = require('./middleware/logger');
 const { socketAuthMiddleware } = require('./middleware/socketAuth');
+const pool = require('./db/pool');
 
 const app = express();
 const server = http.createServer(app);
@@ -49,14 +50,65 @@ io.use(socketAuthMiddleware);
 io.on('connection', (socket) => {
   logger.info('User connected', { socketId: socket.id, userId: socket.user?.id });
 
-  socket.on('join_session', (sessionId) => {
-    socket.join(`session-${sessionId}`);
-    logger.info('User joined session', { socketId: socket.id, sessionId });
-  });
+  const eventWindowMs = 10 * 1000;
+  const eventMaxCount = 20;
+  const eventCounters = new Map();
 
-  socket.on('submit_decision', (data) => {
-    const { sessionId, decision } = data;
-    io.to(`session-${sessionId}`).emit('state_updated', decision);
+  const isRateLimited = (eventName) => {
+    const now = Date.now();
+    const existing = eventCounters.get(eventName);
+
+    if (!existing || now - existing.windowStart >= eventWindowMs) {
+      eventCounters.set(eventName, { windowStart: now, count: 1 });
+      return false;
+    }
+
+    existing.count += 1;
+    if (existing.count > eventMaxCount) {
+      return true;
+    }
+
+    return false;
+  };
+
+  socket.on('join_session', async (sessionId) => {
+    try {
+      if (isRateLimited('join_session')) {
+        socket.emit('error', { message: 'Too many requests' });
+        return;
+      }
+
+      if (typeof sessionId !== 'string' || !sessionId.trim()) {
+        socket.emit('error', { message: 'Invalid session id' });
+        return;
+      }
+
+      const sessionResult = await pool.query(
+        'SELECT id, facilitator_id FROM sessions WHERE id = $1',
+        [sessionId]
+      );
+
+      if (sessionResult.rows.length === 0) {
+        socket.emit('error', { message: 'Session not found' });
+        return;
+      }
+
+      const session = sessionResult.rows[0];
+      const userId = String(socket.user?.id || '');
+      const isFacilitator = String(session.facilitator_id) === userId;
+      const userRole = socket.user?.role;
+
+      if (userRole === 'facilitator' && !isFacilitator) {
+        socket.emit('error', { message: 'Access denied for this session' });
+        return;
+      }
+
+      socket.join(`session-${sessionId}`);
+      logger.info('User joined session', { socketId: socket.id, sessionId });
+    } catch (err) {
+      logger.warn('join_session failed', { socketId: socket.id, err: err.message });
+      socket.emit('error', { message: 'Unable to join session' });
+    }
   });
 
   socket.on('disconnect', () => {
