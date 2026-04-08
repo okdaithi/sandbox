@@ -1,0 +1,75 @@
+# DigitalOcean App Platform specification
+# Deploy with: doctl apps create --spec do-app-spec.yaml
+# Update with: doctl apps update <APP_ID> --spec do-app-spec.yaml
+#
+# Before first deploy:
+#   1. Create a Container Registry:  doctl registry create your-org
+#   2. Create Managed PostgreSQL:    via DO console or doctl databases create
+#   3. Create Managed Redis:         via DO console or doctl databases create
+#   4. Build & push images:          see .github/workflows/deploy.yml
+#   5. Run DB schema once:           psql "$DATABASE_URL" -f database/schema.sql
+#   6. Replace ALL <placeholder> values below with real values
+
+name: scenario-planning
+region: nyc  # Change to your preferred region: nyc, sfo, ams, sgp, lon, fra, tor, blr, syd
+
+services:
+  - name: backend
+    image:
+      registry_type: DOCR
+      registry: your-org               # <-- your DOCR registry name
+      repository: backend
+      tag: latest                       # CI overrides this with git SHA
+    http_port: 5000
+    instance_count: 1
+    instance_size_slug: basic-xs        # 1 vCPU, 1 GB RAM (~$12/mo)
+    routes:
+      - path: /api
+      - path: /socket.io
+    health_check:
+      http_path: /api/health
+      initial_delay_seconds: 10
+      period_seconds: 30
+      timeout_seconds: 5
+      failure_threshold: 3
+    envs:
+      - key: NODE_ENV
+        value: "production"
+      - key: PORT
+        value: "5000"
+      - key: FRONTEND_URL
+        value: "https://your-domain.com"  # <-- your public domain
+      - key: JWT_SECRET
+        value: ""                          # <-- set via: doctl apps update (encrypted)
+        type: SECRET
+      - key: DATABASE_URL
+        value: ""                          # <-- from DO managed PostgreSQL connection string
+        type: SECRET
+      - key: REDIS_URL
+        value: ""                          # <-- from DO managed Redis connection string
+        type: SECRET
+
+  - name: frontend
+    image:
+      registry_type: DOCR
+      registry: your-org               # <-- your DOCR registry name
+      repository: frontend
+      tag: latest                       # CI overrides this with git SHA
+    http_port: 3000
+    instance_count: 1
+    instance_size_slug: basic-xxs       # 1 vCPU, 512 MB RAM (~$5/mo)
+    routes:
+      - path: /                         # catch-all — must be defined after more specific routes
+    health_check:
+      http_path: /
+      initial_delay_seconds: 10
+      period_seconds: 30
+      timeout_seconds: 5
+      failure_threshold: 3
+
+# Optional: custom domain
+# domains:
+#   - domain: your-domain.com
+#     type: PRIMARY
+#   - domain: www.your-domain.com
+#     type: ALIAS
