@@ -44,4 +44,20 @@ router.get('/', authenticateToken, async (req, res, next) => {
   }
 });
 
+// GET /api/scenarios/:id — full scenario record including initial_state and rules_definition
+router.get('/:id', authenticateToken, async (req, res, next) => {
+  try {
+    const result = await pool.query(
+      'SELECT id, name, description, initial_state, rules_definition, created_at, updated_at FROM scenarios WHERE id = $1',
+      [req.params.id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Scenario not found' });
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    next(err);
+  }
+});
+
 module.exports = router;
