@@ -17,27 +17,22 @@ const Dashboard: React.FC = () => {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [scenarios, setScenarios] = useState<any[]>([]);
   const [currentScenario, setCurrentScenario] = useState<any>(null);
+  const [currentSessionId, setCurrentSessionId] = useState<number | null>(null);
+  const [sessionState, setSessionState] = useState<any>(null);
   const [decision, setDecision] = useState('');
   const [loading, setLoading] = useState(true);
+  const [sessionLoading, setSessionLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [events, setEvents] = useState<string[]>([]);
   const user = useSelector((state: RootState) => state.auth.user);
+  const currentTeamId = (user as any)?.team_id ?? (user as any)?.id ?? '';
 
   useEffect(() => {
     const newSocket = io(API_URL, {
       withCredentials: true
     });
     setSocket(newSocket);
-
-    newSocket.on('state_updated', (data) => {
-      const history: any[] = data?.history ?? [];
-      const latest = history[history.length - 1];
-      setEvents(prev => [...prev, `Decision processed: ${JSON.stringify(latest ?? data)}`]);
-    });
-
-    newSocket.on('session_status_changed', (data) => {
-      setEvents(prev => [...prev, `Session status changed to: ${data.status}`]);
-    });
 
     setLoading(true);
     axios.get(`${API_URL}/api/scenarios`, { withCredentials: true })
@@ -52,6 +47,32 @@ const Dashboard: React.FC = () => {
     };
   }, [user]);
 
+  useEffect(() => {
+    if (!socket || !currentSessionId) return;
+
+    socket.emit('join_session', currentSessionId);
+
+    const onStateUpdated = (data: any) => {
+      if (!data) return;
+      setSessionState((prev: any) => ({ ...prev, ...data }));
+      setEvents(prev => [...prev, `Session state updated: ${JSON.stringify(data)}`]);
+    };
+
+    const onSessionStatusChanged = (data: any) => {
+      if (!data) return;
+      setSessionState((prev: any) => ({ ...prev, ...data }));
+      setEvents(prev => [...prev, `Session status changed to: ${data.status}`]);
+    };
+
+    socket.on('state_updated', onStateUpdated);
+    socket.on('session_status_changed', onSessionStatusChanged);
+
+    return () => {
+      socket.off('state_updated', onStateUpdated);
+      socket.off('session_status_changed', onSessionStatusChanged);
+    };
+  }, [socket, currentSessionId]);
+
   const handleLogout = async () => {
     try {
       await axios.post(`${API_URL}/api/auth/logout`, {}, { withCredentials: true });
@@ -61,21 +82,60 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const handleSelectScenario = (scenario: any) => {
+  const handleSelectScenario = async (scenario: any) => {
+    setError(null);
+    setSessionLoading(true);
     setCurrentScenario(scenario);
+    setCurrentSessionId(null);
+    setSessionState(null);
     setEvents([]);
-    if (socket) {
-      socket.emit('join_session', scenario.id);
+
+    try {
+      const existingSessionId = scenario.active_session_id ?? scenario.session_id ?? null;
+      const sessionId = existingSessionId
+        ? existingSessionId
+        : (await axios.post(
+          `${API_URL}/api/sessions`,
+          { scenario_id: scenario.id },
+          { withCredentials: true }
+        )).data.id;
+
+      const sessionResponse = await axios.get(`${API_URL}/api/sessions/${sessionId}`, {
+        withCredentials: true
+      });
+      setCurrentSessionId(sessionId);
+      setSessionState(sessionResponse.data);
+      setEvents([`Joined session ${sessionId} for ${scenario.name}`]);
+    } catch {
+      setError('Failed to create or join session');
+      setCurrentScenario(null);
+    } finally {
+      setSessionLoading(false);
     }
   };
 
-  const handleDecisionSubmit = () => {
-    if (socket && currentScenario) {
-      socket.emit('submit_decision', {
-        sessionId: currentScenario.id,
-        decision: { action: decision }
-      });
+  const handleDecisionSubmit = async () => {
+    if (!currentSessionId || !decision.trim() || !currentTeamId) return;
+
+    setSubmitting(true);
+    setError(null);
+    try {
+      const response = await axios.post(
+        `${API_URL}/api/sessions/${currentSessionId}/decisions`,
+        {
+          team_id: currentTeamId,
+          decision_data: { action: decision.trim() }
+        },
+        { withCredentials: true }
+      );
+
+      setSessionState((prev: any) => ({ ...prev, ...response.data }));
+      setEvents(prev => [...prev, `Decision submitted: ${JSON.stringify(response.data)}`]);
       setDecision('');
+    } catch {
+      setError('Failed to submit decision');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -101,9 +161,10 @@ const Dashboard: React.FC = () => {
               <Button
                 variant="contained"
                 onClick={() => handleSelectScenario(scenario)}
+                disabled={sessionLoading}
                 sx={{ mt: 1 }}
               >
-                Select Scenario
+                {sessionLoading && currentScenario?.id === scenario.id ? 'Connecting...' : 'Select Scenario'}
               </Button>
             </CardContent>
           </Card>
@@ -113,6 +174,17 @@ const Dashboard: React.FC = () => {
       {currentScenario && (
         <Box sx={{ mt: 4 }}>
           <Typography variant="h6">Current Scenario: {currentScenario.name}</Typography>
+          <Typography color="text.secondary" sx={{ mt: 1 }}>
+            Session ID: {currentSessionId ?? 'Not connected'}
+          </Typography>
+          {sessionState?.status && (
+            <Typography color="text.secondary">Status: {sessionState.status}</Typography>
+          )}
+          {!currentTeamId && (
+            <Alert severity="warning" sx={{ mt: 2 }}>
+              No team ID is available in your user profile; decision submission is disabled.
+            </Alert>
+          )}
           <TextField
             fullWidth
             label="Enter your decision"
@@ -123,10 +195,10 @@ const Dashboard: React.FC = () => {
           <Button
             variant="contained"
             onClick={handleDecisionSubmit}
-            disabled={!decision.trim()}
+            disabled={!decision.trim() || !currentSessionId || !currentTeamId || submitting}
             sx={{ mt: 2 }}
           >
-            Submit Decision
+            {submitting ? 'Submitting...' : 'Submit Decision'}
           </Button>
 
           <Divider sx={{ mt: 3, mb: 2 }} />
