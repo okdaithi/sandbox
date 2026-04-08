@@ -6,8 +6,9 @@ import {
 } from '@mui/material';
 import { io } from 'socket.io-client';
 import axios from 'axios';
-import { useSelector } from 'react-redux';
-import { RootState } from '../store';
+import { useDispatch } from 'react-redux';
+import { logout } from '../store';
+import { useNavigate } from 'react-router-dom';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
@@ -19,7 +20,8 @@ const STATUS_COLOR: Record<string, 'default' | 'primary' | 'warning' | 'success'
 };
 
 const FacilitatorPanel: React.FC = () => {
-  const token = useSelector((state: RootState) => state.auth.token);
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
   const [scenarios, setScenarios] = useState<any[]>([]);
   const [selectedScenario, setSelectedScenario] = useState('');
   const [session, setSession] = useState<any>(null);
@@ -36,8 +38,7 @@ const FacilitatorPanel: React.FC = () => {
   useEffect(() => {
     if (!session) return;
     const newSocket = io(API_URL, {
-      withCredentials: true,
-      auth: { token }
+      withCredentials: true
     });
     newSocket.emit('join_session', session.id);
     newSocket.on('state_updated', (data) => {
@@ -51,7 +52,16 @@ const FacilitatorPanel: React.FC = () => {
     });
     return () => { newSocket.close(); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.id, token]);
+  }, [session?.id]);
+
+  const handleLogout = async () => {
+    try {
+      await axios.post(`${API_URL}/api/auth/logout`, {}, { withCredentials: true });
+    } finally {
+      dispatch(logout());
+      navigate('/login');
+    }
+  };
 
   const handleCreateSession = async () => {
     if (!selectedScenario) return;
@@ -91,6 +101,9 @@ const FacilitatorPanel: React.FC = () => {
       <Typography variant="h4" gutterBottom sx={{ mt: 4 }}>
         Facilitator Control Panel
       </Typography>
+      <Button variant="outlined" sx={{ mb: 2 }} onClick={handleLogout}>
+        Logout
+      </Button>
 
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 

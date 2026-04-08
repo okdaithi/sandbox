@@ -7,9 +7,9 @@ const { createClient } = require('redis');
 const cors = require('cors');
 const helmet = require('helmet');
 const compression = require('compression');
-const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
 const logger = require('./middleware/logger');
+const { socketAuthMiddleware } = require('./middleware/socketAuth');
 
 const app = express();
 const server = http.createServer(app);
@@ -43,17 +43,7 @@ app.use('/api/scenarios', require('./routes/scenarios'));
 app.use('/api/sessions', require('./routes/sessions'));
 
 // Socket.io auth middleware — verify JWT before allowing connection
-io.use((socket, next) => {
-  const token = socket.handshake.auth?.token;
-  if (!token) return next(new Error('Authentication required'));
-  try {
-    const user = jwt.verify(token, process.env.JWT_SECRET);
-    socket.user = user;
-    next();
-  } catch {
-    next(new Error('Invalid or expired token'));
-  }
-});
+io.use(socketAuthMiddleware);
 
 // Socket.io event handlers
 io.on('connection', (socket) => {

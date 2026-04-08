@@ -5,13 +5,15 @@ import {
 } from '@mui/material';
 import { io, Socket } from 'socket.io-client';
 import axios from 'axios';
-import { useSelector } from 'react-redux';
-import { RootState } from '../store';
+import { useDispatch, useSelector } from 'react-redux';
+import { RootState, logout } from '../store';
+import { useNavigate } from 'react-router-dom';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 const Dashboard: React.FC = () => {
-  const token = useSelector((state: RootState) => state.auth.token);
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
   const [socket, setSocket] = useState<Socket | null>(null);
   const [scenarios, setScenarios] = useState<any[]>([]);
   const [currentScenario, setCurrentScenario] = useState<any>(null);
@@ -23,8 +25,7 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     const newSocket = io(API_URL, {
-      withCredentials: true,
-      auth: { token }
+      withCredentials: true
     });
     setSocket(newSocket);
 
@@ -49,7 +50,16 @@ const Dashboard: React.FC = () => {
     return () => {
       newSocket.close();
     };
-  }, [user, token]);
+  }, [user]);
+
+  const handleLogout = async () => {
+    try {
+      await axios.post(`${API_URL}/api/auth/logout`, {}, { withCredentials: true });
+    } finally {
+      dispatch(logout());
+      navigate('/login');
+    }
+  };
 
   const handleSelectScenario = (scenario: any) => {
     setCurrentScenario(scenario);
@@ -75,6 +85,9 @@ const Dashboard: React.FC = () => {
         Scenario Planning Dashboard
       </Typography>
       <Typography>Welcome, {user?.username}!</Typography>
+      <Button variant="outlined" sx={{ mt: 1 }} onClick={handleLogout}>
+        Logout
+      </Button>
 
       <Box sx={{ mt: 2 }}>
         <Typography variant="h6">Available Scenarios</Typography>
