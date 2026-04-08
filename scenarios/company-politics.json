@@ -1,0 +1,876 @@
+{
+  "id": "10000000-0000-4000-8000-000000000003",
+  "name": "Internal Company Politics",
+  "description": "The retiring CEO has created a leadership vacuum. Three powerful factions are competing for strategic control of the company: the Growth faction (VP Sales) pushing aggressive market expansion, the Stability faction (CFO) demanding profitability and cost reduction, and the Innovation faction (CTO) advocating a technology pivot. You are a senior director with cross-functional influence. Navigate six rounds of competing narratives, incomplete information, budget battles, and stakeholder conflict to steer the organisation toward a coherent outcome.",
+  "initial_state": {
+    "phase": "initial",
+    "round": 1,
+    "max_rounds": 6,
+    "variables": {
+      "stakeholder_alignment": 32,
+      "information_asymmetry": 68,
+      "executive_support": 42,
+      "team_morale": 52,
+      "budget_contested": 8000000,
+      "political_capital": 50,
+      "media_exposure_risk": 22,
+      "board_confidence": 62,
+      "talent_retention_risk": 38,
+      "faction_a_strength": 62,
+      "faction_b_strength": 58,
+      "faction_c_strength": 44,
+      "alliance_strength": 0,
+      "narrative_control": 40
+    },
+    "active_events": [],
+    "history": []
+  },
+  "rules_definition": {
+    "phases": [
+      "initial",
+      "escalation",
+      "confrontation",
+      "resolution"
+    ],
+    "actors": [
+      {
+        "id": "vp_sales",
+        "name": "VP Sales (Growth Faction Leader)",
+        "role": "internal_executive",
+        "influence": 0.85,
+        "description": "Drives aggressive market expansion agenda. Controls largest team and highest revenue line. Has board ear on growth metrics. Volatile under pressure."
+      },
+      {
+        "id": "cfo",
+        "name": "CFO (Stability Faction Leader)",
+        "role": "internal_executive",
+        "influence": 0.8,
+        "description": "Controls budget approvals and financial narrative. Risk-averse. Has formal veto power on capital expenditure. Values process over speed."
+      },
+      {
+        "id": "cto",
+        "name": "CTO (Innovation Faction Leader)",
+        "role": "internal_executive",
+        "influence": 0.7,
+        "description": "Controls technology roadmap. Respected technically but politically weaker. Holds leverage through key technical talent."
+      },
+      {
+        "id": "board",
+        "name": "Board of Directors",
+        "role": "ultimate_authority",
+        "influence": 1.0,
+        "description": "Currently neutral. Will intervene if board_confidence falls below 35 or if conflict becomes public. Has final authority on CEO appointment."
+      },
+      {
+        "id": "hr_director",
+        "name": "HR Director",
+        "role": "internal_mediator",
+        "influence": 0.55,
+        "description": "Monitors culture and talent. Raising concerns about talent_retention_risk. Can mediate conflict but has limited political capital."
+      },
+      {
+        "id": "media_relations",
+        "name": "Media Relations Director",
+        "role": "external_narrative",
+        "influence": 0.5,
+        "description": "Controls external communications. Warns that media_exposure_risk is rising. Can suppress leaks for 1 round but not indefinitely."
+      },
+      {
+        "id": "key_talent",
+        "name": "Key Technical and Commercial Talent Pool",
+        "role": "leverage",
+        "influence": 0.6,
+        "description": "High-value employees watching leadership dysfunction with growing anxiety. Three senior employees have been approached by competitors."
+      },
+      {
+        "id": "consultant",
+        "name": "External Strategy Consultant",
+        "role": "wild_card",
+        "influence": 0.45,
+        "description": "Hired by the board to assess strategic options. Ostensibly neutral but known to favour the Stability faction CFO approach."
+      }
+    ],
+    "decision_points": [
+      {
+        "id": "dp_initial_positioning",
+        "phase": "initial",
+        "title": "Initial Strategic Positioning",
+        "description": "The CEO retirement has created an immediate power vacuum. All three factions are looking for allies. You must establish your positioning before the informal coalitions solidify. Your choice now will determine which stakeholders see you as aligned or opposed.",
+        "trigger_condition": null,
+        "options": [
+          {
+            "id": "opt_back_growth",
+            "label": "Back the Growth faction publicly",
+            "keywords": [
+              "growth",
+              "sales",
+              "expansion",
+              "aggressive",
+              "back growth",
+              "VP sales",
+              "revenue"
+            ],
+            "state_changes": {
+              "phase": "escalation",
+              "variables": {
+                "executive_support": 62,
+                "faction_a_strength": 72,
+                "faction_b_strength": 52,
+                "political_capital": 65,
+                "board_confidence": 60,
+                "team_morale": 48
+              }
+            },
+            "feedback": "Publicly backing Growth creates a clear signal. VP Sales is now a strong ally (executive_support: 62). CFO faction is now openly opposed. Board is watching but neutral. High-risk, high-reward positioning."
+          },
+          {
+            "id": "opt_back_stability",
+            "label": "Back the Stability faction",
+            "keywords": [
+              "stability",
+              "CFO",
+              "conservative",
+              "safe",
+              "profit",
+              "cost",
+              "financial",
+              "back stability"
+            ],
+            "state_changes": {
+              "phase": "escalation",
+              "variables": {
+                "executive_support": 58,
+                "faction_b_strength": 70,
+                "faction_a_strength": 55,
+                "political_capital": 55,
+                "board_confidence": 68,
+                "team_morale": 50
+              }
+            },
+            "feedback": "Backing Stability is the safe choice. CFO is now an ally. Board confidence is strong (68) \u2014 the CFO has board relationships. However, the Growth faction sees this as betrayal and team morale has softened."
+          },
+          {
+            "id": "opt_back_innovation",
+            "label": "Back the Innovation faction",
+            "keywords": [
+              "innovation",
+              "CTO",
+              "technology",
+              "tech",
+              "R&D",
+              "pivot",
+              "future",
+              "back innovation"
+            ],
+            "state_changes": {
+              "phase": "escalation",
+              "variables": {
+                "executive_support": 48,
+                "faction_c_strength": 60,
+                "team_morale": 68,
+                "talent_retention_risk": 25,
+                "board_confidence": 58,
+                "political_capital": 45
+              }
+            },
+            "feedback": "Innovation backing galvanises technical talent \u2014 team_morale surges to 68 and talent_retention_risk drops. The CTO is grateful. However, Innovation is the politically weakest faction. Executive support is limited."
+          },
+          {
+            "id": "opt_neutral",
+            "label": "Remain neutral \u2014 position as independent broker",
+            "keywords": [
+              "neutral",
+              "independent",
+              "broker",
+              "mediator",
+              "no faction",
+              "remain",
+              "balance"
+            ],
+            "state_changes": {
+              "phase": "escalation",
+              "variables": {
+                "political_capital": 58,
+                "information_asymmetry": 55,
+                "board_confidence": 65,
+                "executive_support": 45,
+                "narrative_control": 55
+              }
+            },
+            "feedback": "Neutrality preserves optionality and builds your reputation as an honest broker. Information_asymmetry drops as all factions brief you. Board confidence is stable. Risk: all factions may come to see you as unreliable when decisions are forced."
+          }
+        ]
+      },
+      {
+        "id": "dp_information_management",
+        "phase": "initial",
+        "title": "Information Gathering Strategy",
+        "description": "Each faction is controlling its own narrative. Information asymmetry is high (68). Before committing to further actions, you must decide how to close the information gap.",
+        "trigger_condition": null,
+        "options": [
+          {
+            "id": "opt_transparency_audit",
+            "label": "Request a full transparency and information audit",
+            "keywords": [
+              "audit",
+              "transparency",
+              "full",
+              "disclose",
+              "open books",
+              "reveal",
+              "information audit"
+            ],
+            "state_changes": {
+              "variables": {
+                "information_asymmetry": 20,
+                "political_capital": 38,
+                "executive_support": 38,
+                "narrative_control": 65
+              }
+            },
+            "feedback": "The audit reveals significant hidden agendas from all three factions. Information asymmetry drops to 20 \u2014 you now have a clear picture. Political cost is high: all factions resent the exposure. VP Sales is particularly hostile."
+          },
+          {
+            "id": "opt_private_intel",
+            "label": "Conduct private intelligence gathering",
+            "keywords": [
+              "private",
+              "intel",
+              "intelligence",
+              "quiet",
+              "discreet",
+              "gather",
+              "informal",
+              "network"
+            ],
+            "state_changes": {
+              "variables": {
+                "information_asymmetry": 38,
+                "political_capital": 52,
+                "alliance_strength": 15,
+                "narrative_control": 52
+              }
+            },
+            "feedback": "Private intelligence through your informal network reduces information asymmetry to 38. You have actionable insights on each faction without triggering defensive reactions. Political capital maintained."
+          },
+          {
+            "id": "opt_accept_current",
+            "label": "Accept current information state and proceed",
+            "keywords": [
+              "accept",
+              "proceed",
+              "current",
+              "act now",
+              "move forward",
+              "incomplete",
+              "as is"
+            ],
+            "state_changes": {
+              "variables": {
+                "information_asymmetry": 68,
+                "political_capital": 60,
+                "narrative_control": 42
+              }
+            },
+            "feedback": "Acting on incomplete information preserves speed and political capital. You retain full political flexibility. Risk: you may be making decisions based on factional disinformation. Information asymmetry remains at 68."
+          }
+        ]
+      },
+      {
+        "id": "dp_alliance_building",
+        "phase": "escalation",
+        "title": "Alliance Construction",
+        "description": "Factions are consolidating. You need to build a coalition if you want to influence the outcome. What is your alliance strategy?",
+        "trigger_condition": {
+          "variable": "political_capital",
+          "operator": "gt",
+          "value": 0
+        },
+        "options": [
+          {
+            "id": "opt_executive_coalition",
+            "label": "Form a formal executive coalition",
+            "keywords": [
+              "formal",
+              "coalition",
+              "executive",
+              "official",
+              "public",
+              "alliance",
+              "declare"
+            ],
+            "state_changes": {
+              "variables": {
+                "alliance_strength": 70,
+                "executive_support": 72,
+                "narrative_control": 65,
+                "political_capital": 35,
+                "media_exposure_risk": 45
+              }
+            },
+            "feedback": "Formal coalition is powerful and visible. Alliance strength surges to 70. Executive support strong. However, media_exposure_risk rises to 45 \u2014 the coalition is now a public political entity subject to scrutiny."
+          },
+          {
+            "id": "opt_informal_network",
+            "label": "Build informal network of allies",
+            "keywords": [
+              "informal",
+              "network",
+              "quiet",
+              "behind",
+              "relationships",
+              "soft power",
+              "cultivate"
+            ],
+            "state_changes": {
+              "variables": {
+                "alliance_strength": 45,
+                "political_capital": 44,
+                "information_asymmetry": 30,
+                "media_exposure_risk": 20,
+                "board_confidence": 68
+              }
+            },
+            "feedback": "Informal network is slower but durable and harder to counter. Media exposure risk stays low. Information continues to flow to you. Alliance strength at 45 \u2014 sufficient for influence but not dominance."
+          },
+          {
+            "id": "opt_board_appeal",
+            "label": "Appeal directly to the board of directors",
+            "keywords": [
+              "board",
+              "directors",
+              "escalate",
+              "appeal",
+              "governance",
+              "board level",
+              "trustees"
+            ],
+            "state_changes": {
+              "variables": {
+                "board_confidence": 75,
+                "political_capital": 28,
+                "executive_support": 35,
+                "alliance_strength": 55,
+                "media_exposure_risk": 55
+              }
+            },
+            "feedback": "Board engagement is high-stakes. Board confidence rises to 75 \u2014 they appreciate the direct engagement. However, the move is read as bypassing the executive layer. Executive support drops. Media risk rises."
+          },
+          {
+            "id": "opt_external_validator",
+            "label": "Engage external consultant as validator",
+            "keywords": [
+              "consultant",
+              "external",
+              "validator",
+              "advisor",
+              "third party",
+              "independent",
+              "outside"
+            ],
+            "state_changes": {
+              "variables": {
+                "information_asymmetry": 25,
+                "political_capital": 42,
+                "board_confidence": 70,
+                "media_exposure_risk": 18,
+                "executive_support": 48
+              }
+            },
+            "feedback": "External consultant engagement lends credibility and provides cover for difficult positions. Board confidence improves. Note: the consultant is known to favour the Stability faction \u2014 their findings may be biased."
+          }
+        ]
+      },
+      {
+        "id": "dp_budget_battle",
+        "phase": "escalation",
+        "title": "Contested Budget Allocation",
+        "description": "The M in contested budget is now formally on the table. The CFO has called a budget committee meeting. Three factions each want a majority. Your position on this decision will define your faction alignment permanently in financial terms.",
+        "trigger_condition": {
+          "variable": "budget_contested",
+          "operator": "gte",
+          "value": 5000000
+        },
+        "options": [
+          {
+            "id": "opt_negotiate_split",
+            "label": "Negotiate a shared budget split",
+            "keywords": [
+              "split",
+              "share",
+              "negotiate",
+              "compromise",
+              "divide",
+              "equitable",
+              "fair"
+            ],
+            "state_changes": {
+              "variables": {
+                "stakeholder_alignment": 52,
+                "political_capital": 55,
+                "executive_support": 58,
+                "budget_contested": 2000000,
+                "board_confidence": 68
+              }
+            },
+            "feedback": "Budget split negotiated. Stakeholder alignment rises to 52 \u2014 factions accept the compromise. Political capital is maintained. Board views the resolution favourably. M remains under dispute for the next cycle."
+          },
+          {
+            "id": "opt_fight_for_control",
+            "label": "Fight for full budget control",
+            "keywords": [
+              "control",
+              "full",
+              "fight",
+              "win",
+              "dominate",
+              "all",
+              "maximum",
+              "total"
+            ],
+            "state_changes": {
+              "variables": {
+                "political_capital": 72,
+                "executive_support": 72,
+                "stakeholder_alignment": 22,
+                "budget_contested": 0,
+                "team_morale": 38,
+                "media_exposure_risk": 48
+              }
+            },
+            "feedback": "Aggressive budget fight won. Full budget control achieved (M). Political capital surges but stakeholder alignment has collapsed to 22. Two executives have formally complained to the board. Team morale has deteriorated."
+          },
+          {
+            "id": "opt_concede",
+            "label": "Concede contested budget, focus on different resources",
+            "keywords": [
+              "concede",
+              "give up",
+              "step back",
+              "yield",
+              "resources",
+              "different",
+              "reframe",
+              "redirect"
+            ],
+            "state_changes": {
+              "variables": {
+                "political_capital": 62,
+                "stakeholder_alignment": 58,
+                "executive_support": 52,
+                "budget_contested": 0,
+                "board_confidence": 65,
+                "team_morale": 60
+              }
+            },
+            "feedback": "Conceding the budget battle is seen as gracious rather than weak. Stakeholder alignment improves significantly to 58. You have redirected your focus to headcount and project approval authority \u2014 often more powerful than budget."
+          },
+          {
+            "id": "opt_performance_allocation",
+            "label": "Propose performance-based budget allocation",
+            "keywords": [
+              "performance",
+              "metric",
+              "KPI",
+              "results",
+              "outcome",
+              "data",
+              "merit"
+            ],
+            "state_changes": {
+              "variables": {
+                "political_capital": 58,
+                "stakeholder_alignment": 48,
+                "board_confidence": 74,
+                "budget_contested": 3000000,
+                "narrative_control": 65
+              }
+            },
+            "feedback": "Performance-based framework proposed. Board loves it (confidence: 74). Factions are cautious \u2014 each believes they can win on metrics. M remains in escrow pending Q2 results. You control the evaluation framework."
+          }
+        ]
+      },
+      {
+        "id": "dp_conflict_response",
+        "phase": "confrontation",
+        "title": "Escalation Response \u2014 Open Conflict",
+        "description": "The conflict has become open. A divisive all-hands email from the VP Sales has exposed the internal disagreement publicly. HR has raised a formal concern. Board has requested an update within 48 hours.",
+        "trigger_condition": {
+          "variable": "stakeholder_alignment",
+          "operator": "lt",
+          "value": 35
+        },
+        "options": [
+          {
+            "id": "opt_hr_mediation",
+            "label": "Seek formal HR mediation",
+            "keywords": [
+              "HR",
+              "mediation",
+              "formal",
+              "human resources",
+              "mediate",
+              "process",
+              "neutral party"
+            ],
+            "state_changes": {
+              "phase": "resolution",
+              "variables": {
+                "stakeholder_alignment": 50,
+                "team_morale": 62,
+                "talent_retention_risk": 32,
+                "political_capital": 45,
+                "media_exposure_risk": 15
+              }
+            },
+            "feedback": "HR mediation de-escalates the open conflict. Stakeholder alignment rises to 50 and team morale recovers. Media exposure risk reduced. Political cost is moderate \u2014 being seen to use HR signals weakness to some executives."
+          },
+          {
+            "id": "opt_escalate_board",
+            "label": "Escalate to board \u2014 force resolution",
+            "keywords": [
+              "board",
+              "escalate",
+              "force",
+              "resolution",
+              "governance",
+              "intervention",
+              "board level"
+            ],
+            "state_changes": {
+              "phase": "resolution",
+              "variables": {
+                "board_confidence": 80,
+                "stakeholder_alignment": 42,
+                "political_capital": 35,
+                "executive_support": 40,
+                "media_exposure_risk": 65
+              }
+            },
+            "feedback": "Board escalation forces immediate action. Board confidence rises to 80 \u2014 they appreciate the governance trigger. However, media_exposure_risk spikes to 65 as journalists detect board activity. Executives feel blindsided."
+          },
+          {
+            "id": "opt_public_messaging",
+            "label": "Shape the narrative through public messaging",
+            "keywords": [
+              "public",
+              "message",
+              "narrative",
+              "communications",
+              "press",
+              "external",
+              "PR",
+              "announcement"
+            ],
+            "state_changes": {
+              "phase": "confrontation",
+              "variables": {
+                "narrative_control": 78,
+                "media_exposure_risk": 42,
+                "stakeholder_alignment": 38,
+                "political_capital": 55,
+                "board_confidence": 60
+              }
+            },
+            "feedback": "External messaging puts your frame on the story. Narrative control rises to 78. Media exposure is managed but not eliminated. Internal stakeholders resent the external positioning \u2014 some see it as reputation management at the company's expense."
+          },
+          {
+            "id": "opt_quiet_diplomacy",
+            "label": "One-on-one quiet diplomacy with key stakeholders",
+            "keywords": [
+              "quiet",
+              "one-on-one",
+              "bilateral",
+              "diplomatic",
+              "private",
+              "individual",
+              "personal"
+            ],
+            "state_changes": {
+              "phase": "resolution",
+              "variables": {
+                "stakeholder_alignment": 48,
+                "political_capital": 62,
+                "information_asymmetry": 22,
+                "alliance_strength": 60,
+                "executive_support": 58,
+                "media_exposure_risk": 12
+              }
+            },
+            "feedback": "Quiet diplomacy works gradually but effectively. Information asymmetry drops as stakeholders open up. Alliance strength builds to 60. Media risk stays low. This path is slow \u2014 it costs one additional round of conflict exposure."
+          }
+        ]
+      },
+      {
+        "id": "dp_endgame_strategy",
+        "phase": "resolution",
+        "title": "Endgame \u2014 Leadership Resolution",
+        "description": "The board has commissioned a formal leadership review. You have one final opportunity to shape the outcome. The CEO appointment is imminent. Your positioning in this final round will determine the long-term power structure.",
+        "trigger_condition": null,
+        "options": [
+          {
+            "id": "opt_consolidated_leadership",
+            "label": "Push for consolidated single-faction leadership",
+            "keywords": [
+              "consolidated",
+              "single",
+              "clear winner",
+              "decisive",
+              "strong leadership",
+              "one leader"
+            ],
+            "state_changes": {
+              "phase": "resolution",
+              "variables": {
+                "stakeholder_alignment": 40,
+                "board_confidence": 78,
+                "political_capital": 80,
+                "team_morale": 55,
+                "talent_retention_risk": 50
+              }
+            },
+            "feedback": "Consolidated leadership creates clarity \u2014 board confidence rises. The winning faction is now dominant. However, losing factions are demoralised, talent retention risk rises, and long-term cultural cohesion is at risk."
+          },
+          {
+            "id": "opt_hybrid_leadership",
+            "label": "Propose hybrid leadership model \u2014 power sharing",
+            "keywords": [
+              "hybrid",
+              "power sharing",
+              "co-leadership",
+              "shared",
+              "joint",
+              "committee",
+              "coalition"
+            ],
+            "state_changes": {
+              "phase": "resolution",
+              "variables": {
+                "stakeholder_alignment": 68,
+                "board_confidence": 68,
+                "team_morale": 70,
+                "talent_retention_risk": 25,
+                "political_capital": 55
+              }
+            },
+            "feedback": "Hybrid model is popular with staff \u2014 team_morale rises to 70 and talent retention risk drops significantly. Board is cautiously supportive. Risk: hybrid models require high alignment to function and may simply delay the conflict."
+          },
+          {
+            "id": "opt_external_hire",
+            "label": "Recommend external CEO hire as neutral party",
+            "keywords": [
+              "external",
+              "outside",
+              "neutral",
+              "new CEO",
+              "outside hire",
+              "fresh",
+              "third party CEO"
+            ],
+            "state_changes": {
+              "phase": "resolution",
+              "variables": {
+                "stakeholder_alignment": 62,
+                "board_confidence": 82,
+                "political_capital": 45,
+                "team_morale": 60,
+                "faction_a_strength": 40,
+                "faction_b_strength": 40,
+                "faction_c_strength": 40
+              }
+            },
+            "feedback": "External hire recommendation is welcomed by the board (82). All internal factions are weakened equally \u2014 political capital across factions drops. Your own influence is diminished but the organisation avoids internal fracture."
+          },
+          {
+            "id": "opt_compromise_restructure",
+            "label": "Accept a compromise structural restructure",
+            "keywords": [
+              "restructure",
+              "reorganise",
+              "reorg",
+              "compromise",
+              "restructuring",
+              "new structure",
+              "accept"
+            ],
+            "state_changes": {
+              "phase": "resolution",
+              "variables": {
+                "stakeholder_alignment": 72,
+                "board_confidence": 72,
+                "team_morale": 65,
+                "political_capital": 60,
+                "talent_retention_risk": 28,
+                "narrative_control": 70
+              }
+            },
+            "feedback": "Structural compromise achieves the highest stakeholder alignment of all endgame options (72). All parties make concessions. Board confidence is strong. Team morale is healthy. This path requires high political capital to execute."
+          }
+        ]
+      }
+    ],
+    "event_triggers": [
+      {
+        "id": "evt_media_leak",
+        "condition": {
+          "variable": "media_exposure_risk",
+          "operator": "gt",
+          "value": 65
+        },
+        "event": {
+          "type": "media_leak",
+          "title": "Internal Conflict Goes Public",
+          "description": "A journalist has published an article citing anonymous sources describing \"internal war\" at the company. Board is furious. Share price has fallen 3%.",
+          "severity": "critical",
+          "variable_changes": {
+            "board_confidence": -18,
+            "talent_retention_risk": 20,
+            "public_trust": -10
+          }
+        }
+      },
+      {
+        "id": "evt_key_departure",
+        "condition": {
+          "variable": "talent_retention_risk",
+          "operator": "gt",
+          "value": 72
+        },
+        "event": {
+          "type": "key_talent_departure",
+          "title": "Star Employee Departure",
+          "description": "Your top product architect has accepted an offer from a direct competitor. Two others have requested exit interviews. Technical credibility of the Innovation faction severely damaged.",
+          "severity": "high",
+          "variable_changes": {
+            "faction_c_strength": -20,
+            "team_morale": -12,
+            "board_confidence": -8
+          }
+        }
+      },
+      {
+        "id": "evt_board_intervention",
+        "condition": {
+          "variable": "board_confidence",
+          "operator": "lt",
+          "value": 38
+        },
+        "event": {
+          "type": "board_emergency_session",
+          "title": "Board Emergency Session Called",
+          "description": "The board has called an emergency governance session. All executives are summoned. The CEO appointment process has been suspended pending review. A crisis management firm has been retained.",
+          "severity": "critical",
+          "variable_changes": {
+            "political_capital": -20,
+            "executive_support": -15,
+            "media_exposure_risk": 30
+          }
+        }
+      },
+      {
+        "id": "evt_alignment_achieved",
+        "condition": {
+          "variable": "stakeholder_alignment",
+          "operator": "gt",
+          "value": 72
+        },
+        "event": {
+          "type": "alignment_milestone",
+          "title": "Stakeholder Alignment Milestone",
+          "description": "A rare moment of genuine cross-faction alignment. All three faction leaders have voluntarily participated in a joint strategy session. Board has taken note and delayed the external hire search.",
+          "severity": "positive",
+          "variable_changes": {
+            "board_confidence": 10,
+            "team_morale": 12,
+            "talent_retention_risk": -15
+          }
+        }
+      },
+      {
+        "id": "evt_morale_collapse",
+        "condition": {
+          "variable": "team_morale",
+          "operator": "lt",
+          "value": 30
+        },
+        "event": {
+          "type": "morale_crisis",
+          "title": "Organisational Morale Crisis",
+          "description": "Anonymous internal survey results have been leaked showing 78% of staff are considering leaving within 12 months. HR has declared a culture emergency.",
+          "severity": "critical",
+          "variable_changes": {
+            "talent_retention_risk": 25,
+            "board_confidence": -12,
+            "media_exposure_risk": 20
+          }
+        }
+      }
+    ],
+    "outcome_conditions": [
+      {
+        "id": "oc_collapse",
+        "condition": {
+          "variable": "talent_retention_risk",
+          "operator": "gt",
+          "value": 88,
+          "and": {
+            "variable": "board_confidence",
+            "operator": "lt",
+            "value": 30
+          }
+        },
+        "outcome": "organisational_collapse",
+        "severity": "catastrophic",
+        "description": "Leadership vacuum combined with mass talent exodus has triggered organisational collapse. Board has initiated emergency restructuring. External advisors have been brought in to manage the crisis. Long-term viability at risk."
+      },
+      {
+        "id": "oc_pyrrhic",
+        "condition": {
+          "variable": "political_capital",
+          "operator": "gt",
+          "value": 82,
+          "and": {
+            "variable": "team_morale",
+            "operator": "lt",
+            "value": 28
+          }
+        },
+        "outcome": "pyrrhic_victory",
+        "severity": "high",
+        "description": "Political objective achieved but at severe human cost. You have won the power contest but the organisation you now lead is demoralised and fractured. The victory may be short-lived."
+      },
+      {
+        "id": "oc_functional_alignment",
+        "condition": {
+          "variable": "stakeholder_alignment",
+          "operator": "gte",
+          "value": 60,
+          "and": {
+            "variable": "board_confidence",
+            "operator": "gte",
+            "value": 65
+          }
+        },
+        "outcome": "functional_alignment",
+        "severity": "success",
+        "description": "Functional alignment achieved. The organisation is not unified but is operationally coherent. Leadership transition can proceed. Continued monitoring of faction dynamics required."
+      },
+      {
+        "id": "oc_strong_resolution",
+        "condition": {
+          "variable": "stakeholder_alignment",
+          "operator": "gte",
+          "value": 75,
+          "and": {
+            "variable": "team_morale",
+            "operator": "gte",
+            "value": 68
+          }
+        },
+        "outcome": "organisational_unity",
+        "severity": "success",
+        "description": "Exceptional outcome. Genuine organisational unity achieved through the leadership transition. All factions have contributed to a coherent strategic direction. The company is positioned for strong execution."
+      }
+    ]
+  }
+}

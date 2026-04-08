@@ -1,0 +1,526 @@
+{
+  "id": "10000000-0000-4000-8000-000000000001",
+  "name": "International Trade Breakdown",
+  "description": "A major geopolitical dispute has triggered closure of the Strait of Hormuz to commercial traffic. Your company depends on this route for 60% of raw material imports. Port capacity has collapsed and shipping costs are spiking. Manage a cascading maritime logistics crisis through five decision rounds, balancing inventory survival against cash preservation and long-term supply chain resilience.",
+  "initial_state": {
+    "phase": "initial",
+    "round": 1,
+    "max_rounds": 5,
+    "variables": {
+      "port_capacity": 35,
+      "shipping_delay_days": 0,
+      "fuel_cost_index": 145,
+      "geopolitical_risk_level": 4,
+      "inventory_level": 72,
+      "cash_reserves": 10000000,
+      "supply_chain_disruption": true,
+      "supplier_diversification": "single",
+      "insurance_coverage": "standard",
+      "demand_pressure": 80,
+      "customer_satisfaction": 75
+    },
+    "active_events": [],
+    "history": []
+  },
+  "rules_definition": {
+    "phases": ["initial", "escalation", "crisis", "resolution"],
+    "actors": [
+      {
+        "id": "port_authority",
+        "name": "Strait Port Authority",
+        "role": "regulatory",
+        "influence": 0.9,
+        "description": "Controls access to the affected strait. Unresponsive to commercial pressure; responds only to diplomatic channels."
+      },
+      {
+        "id": "shipping_consortium",
+        "name": "Global Shipping Consortium",
+        "role": "logistics_partner",
+        "influence": 0.7,
+        "description": "Controls 80% of available alternate-route vessels. Expensive but reliable when engaged early."
+      },
+      {
+        "id": "government_relations",
+        "name": "Government Relations Office",
+        "role": "diplomatic",
+        "influence": 0.6,
+        "description": "Can pursue diplomatic resolution but requires 2–3 rounds of negotiation. Reduces geopolitical_risk_level by 1 per engagement."
+      },
+      {
+        "id": "insurance_underwriter",
+        "name": "Marine Insurance Underwriter",
+        "role": "financial",
+        "influence": 0.5,
+        "description": "Standard coverage excludes geopolitical closures. Enhanced coverage available at cost but covers rerouting premiums."
+      },
+      {
+        "id": "alternative_supplier",
+        "name": "Secondary Regional Supplier",
+        "role": "supply",
+        "influence": 0.4,
+        "description": "15% lower quality but geographically unconstrained. Can be activated within 1 round at a one-time cost."
+      },
+      {
+        "id": "financial_controller",
+        "name": "Internal Financial Controller",
+        "role": "internal",
+        "influence": 0.8,
+        "description": "Monitors cash reserves and enforces spending thresholds. Will escalate if cash_reserves drop below $4M."
+      }
+    ],
+    "decision_points": [
+      {
+        "id": "dp_port_response",
+        "phase": "initial",
+        "title": "Port Closure Response",
+        "description": "The strait closure has cut your primary shipping route. You must decide how to restore cargo flow within 72 hours before inventory begins critical depletion.",
+        "trigger_condition": null,
+        "options": [
+          {
+            "id": "opt_reroute",
+            "label": "Reroute through Cape of Good Hope",
+            "keywords": ["reroute", "alternate", "cape", "detour", "redirect", "good hope"],
+            "state_changes": {
+              "phase": "escalation",
+              "variables": {
+                "shipping_delay_days": 18,
+                "fuel_cost_index": 185,
+                "port_capacity": 80,
+                "cash_reserves": 8500000
+              }
+            },
+            "feedback": "Rerouting adds 18 days and $1.5M in fuel and port fees but restores cargo flow. Inventory will draw down during the delay. Geopolitical exposure reduced."
+          },
+          {
+            "id": "opt_wait",
+            "label": "Wait for strait reopening",
+            "keywords": ["wait", "hold", "standby", "diplomatic", "reopen", "delay"],
+            "state_changes": {
+              "phase": "crisis",
+              "variables": {
+                "shipping_delay_days": 21,
+                "inventory_level": 48,
+                "cash_reserves": 9500000,
+                "customer_satisfaction": 55
+              }
+            },
+            "feedback": "Waiting preserves cash but inventory has dropped to 48%. Customer satisfaction is eroding. Diplomatic resolution is uncertain — geopolitical risk remains elevated."
+          },
+          {
+            "id": "opt_air_freight",
+            "label": "Air freight for critical cargo",
+            "keywords": ["air", "freight", "fly", "aviation", "critical", "express", "fast"],
+            "state_changes": {
+              "phase": "escalation",
+              "variables": {
+                "shipping_delay_days": 3,
+                "fuel_cost_index": 220,
+                "cash_reserves": 7200000,
+                "inventory_level": 68,
+                "demand_pressure": 75
+              }
+            },
+            "feedback": "Air freight bridges the critical gap in 3 days but costs $2.8M. Cash reserves are now stressed. Sustainable only for 1–2 rounds before financial limits force a change."
+          },
+          {
+            "id": "opt_diplomatic",
+            "label": "Engage government diplomatic channel",
+            "keywords": ["diplomatic", "government", "negotiate", "relations", "politics", "embassy", "bilateral"],
+            "state_changes": {
+              "phase": "escalation",
+              "variables": {
+                "geopolitical_risk_level": 3,
+                "shipping_delay_days": 12,
+                "inventory_level": 60,
+                "cash_reserves": 9800000
+              }
+            },
+            "feedback": "Diplomatic engagement has reduced geopolitical risk by one level. Shipping delay is still 12 days during negotiations. Inventory continues to decline but the long-term outlook improves."
+          }
+        ]
+      },
+      {
+        "id": "dp_supplier_diversification",
+        "phase": "escalation",
+        "title": "Supplier Diversification Decision",
+        "description": "Your single-source supplier is now unable to guarantee delivery. Do you activate backup suppliers at cost, or maintain the primary relationship and accept the risk?",
+        "trigger_condition": null,
+        "options": [
+          {
+            "id": "opt_activate_backup",
+            "label": "Activate regional backup supplier",
+            "keywords": ["backup", "secondary", "regional", "activate", "alternative", "second", "diversify"],
+            "state_changes": {
+              "phase": "escalation",
+              "variables": {
+                "supplier_diversification": "dual",
+                "inventory_level": 65,
+                "cash_reserves": 6800000,
+                "supply_chain_disruption": false
+              }
+            },
+            "feedback": "Backup supplier is activated at a $1.4M setup cost. Inventory stabilises. Quality is 15% lower than primary but sufficient for continued operations. Disruption risk significantly reduced."
+          },
+          {
+            "id": "opt_maintain_single",
+            "label": "Maintain single supplier and renegotiate terms",
+            "keywords": ["single", "maintain", "renegotiate", "primary", "keep", "original"],
+            "state_changes": {
+              "phase": "crisis",
+              "variables": {
+                "inventory_level": 42,
+                "cash_reserves": 7800000,
+                "geopolitical_risk_level": 4,
+                "customer_satisfaction": 45
+              }
+            },
+            "feedback": "Renegotiation is ongoing but the primary supplier is unable to deliver through the blocked route. Inventory has dropped to 42%. Customer satisfaction is declining sharply."
+          },
+          {
+            "id": "opt_multi_source",
+            "label": "Emergency multi-source procurement",
+            "keywords": ["multi", "multiple", "spread", "diverse", "emergency", "portfolio", "broad"],
+            "state_changes": {
+              "phase": "resolution",
+              "variables": {
+                "supplier_diversification": "multi",
+                "inventory_level": 70,
+                "cash_reserves": 5500000,
+                "supply_chain_disruption": false,
+                "demand_pressure": 70
+              }
+            },
+            "feedback": "Multi-source procurement is expensive ($2.9M) but creates resilient supply architecture. Inventory recovers to 70%. Long-term exposure to single-route disruption is eliminated."
+          },
+          {
+            "id": "opt_performance_bond",
+            "label": "Enforce insurance performance bond",
+            "keywords": ["insurance", "bond", "claim", "enforce", "underwriter", "coverage"],
+            "state_changes": {
+              "phase": "escalation",
+              "variables": {
+                "cash_reserves": 8800000,
+                "inventory_level": 55,
+                "insurance_coverage": "enhanced"
+              }
+            },
+            "feedback": "Insurance bond claim partially accepted. $1M recovery reduces cash pressure. Inventory continues declining but financial runway is extended. Enhanced coverage now active for rerouting premiums."
+          }
+        ]
+      },
+      {
+        "id": "dp_fuel_hedging",
+        "phase": "escalation",
+        "title": "Fuel Cost Management",
+        "description": "Fuel costs are now 45–120% above baseline. This is unsustainable over multiple rounds. How do you manage the fuel cost exposure?",
+        "trigger_condition": {
+          "variable": "fuel_cost_index",
+          "operator": "gt",
+          "value": 140
+        },
+        "options": [
+          {
+            "id": "opt_futures",
+            "label": "Lock in current rates via fuel futures contract",
+            "keywords": ["futures", "lock", "hedge", "contract", "fixed", "rate"],
+            "state_changes": {
+              "variables": {
+                "fuel_cost_index": 155,
+                "cash_reserves": 7500000
+              }
+            },
+            "feedback": "Futures contract locks fuel at 155 index for 60 days at a $500K premium. Protected from further spikes. If rates fall, you overpay — but downside is capped."
+          },
+          {
+            "id": "opt_pass_surcharge",
+            "label": "Pass fuel surcharge to customers",
+            "keywords": ["pass", "surcharge", "customer", "price", "increase", "transfer"],
+            "state_changes": {
+              "variables": {
+                "fuel_cost_index": 145,
+                "customer_satisfaction": 50,
+                "demand_pressure": 65,
+                "cash_reserves": 8200000
+              }
+            },
+            "feedback": "Surcharge preserves margins but customer satisfaction drops to 50 and demand eases. 2 key accounts have flagged intent to seek alternative suppliers."
+          },
+          {
+            "id": "opt_absorb",
+            "label": "Absorb fuel costs from cash reserves",
+            "keywords": ["absorb", "reserves", "internal", "sustain", "maintain", "cover"],
+            "state_changes": {
+              "variables": {
+                "fuel_cost_index": 145,
+                "cash_reserves": 6500000,
+                "customer_satisfaction": 80,
+                "demand_pressure": 82
+              }
+            },
+            "feedback": "Absorbing costs protects customer relationships (satisfaction at 80) but burns $1.7M from reserves. Cash runway is now constrained to approximately 2 further rounds at this burn rate."
+          }
+        ]
+      },
+      {
+        "id": "dp_crisis_response",
+        "phase": "crisis",
+        "title": "Crisis Escalation Response",
+        "description": "The supply chain is in critical state. Inventory and cash are both stressed. An emergency decision is required to prevent operational failure.",
+        "trigger_condition": null,
+        "options": [
+          {
+            "id": "opt_govt_intervention",
+            "label": "Request government emergency logistics intervention",
+            "keywords": ["government", "intervention", "emergency", "federal", "state", "military", "strategic"],
+            "state_changes": {
+              "phase": "resolution",
+              "variables": {
+                "port_capacity": 65,
+                "shipping_delay_days": 8,
+                "geopolitical_risk_level": 2,
+                "cash_reserves": 7000000,
+                "inventory_level": 55
+              }
+            },
+            "feedback": "Government intervention has partially opened the strait to humanitarian and critical commercial traffic. Port capacity is at 65%. Geopolitical risk reduced to level 2. Inventory stabilising."
+          },
+          {
+            "id": "opt_charter_vessels",
+            "label": "Charter vessels from competitor operator",
+            "keywords": ["charter", "vessel", "competitor", "rival", "rent", "lease", "ship"],
+            "state_changes": {
+              "phase": "resolution",
+              "variables": {
+                "shipping_delay_days": 5,
+                "cash_reserves": 6000000,
+                "inventory_level": 62,
+                "port_capacity": 60
+              }
+            },
+            "feedback": "Chartered competitor vessels at premium cost ($1.5M). Delivery restored within 5 days. Cash is significantly reduced but operations can continue."
+          },
+          {
+            "id": "opt_partial_delivery",
+            "label": "Accept partial delivery schedule and ration supply",
+            "keywords": ["partial", "ration", "reduce", "prioritise", "triage", "cut", "schedule"],
+            "state_changes": {
+              "phase": "crisis",
+              "variables": {
+                "inventory_level": 50,
+                "customer_satisfaction": 40,
+                "demand_pressure": 55,
+                "cash_reserves": 8500000
+              }
+            },
+            "feedback": "Rationing supply preserves cash but further damages customer relationships. Satisfaction drops to 40. Two major accounts have formally complained. Some demand has permanently shifted to competitors."
+          }
+        ]
+      },
+      {
+        "id": "dp_inventory_triage",
+        "phase": null,
+        "title": "Emergency Inventory Management",
+        "description": "Inventory levels have dropped below the critical 50% threshold. Immediate action is required to prevent operational shutdown.",
+        "trigger_condition": {
+          "variable": "inventory_level",
+          "operator": "lt",
+          "value": 50
+        },
+        "options": [
+          {
+            "id": "opt_ration_key_customers",
+            "label": "Ration supply to key strategic customers only",
+            "keywords": ["ration", "key", "strategic", "priority", "allocate", "tier"],
+            "state_changes": {
+              "variables": {
+                "customer_satisfaction": 48,
+                "demand_pressure": 60,
+                "cash_reserves": 8800000,
+                "inventory_level": 45
+              }
+            },
+            "feedback": "Rationing protects your 5 highest-value accounts but secondary customers have begun defecting. Short-term cash position is preserved."
+          },
+          {
+            "id": "opt_emergency_procurement",
+            "label": "Emergency spot-market procurement at premium",
+            "keywords": ["spot", "emergency", "premium", "procure", "buy", "purchase", "urgent"],
+            "state_changes": {
+              "variables": {
+                "inventory_level": 68,
+                "cash_reserves": 5800000,
+                "supply_chain_disruption": false
+              }
+            },
+            "feedback": "Spot-market procurement at 40% premium restores inventory to 68%. Expensive ($2.2M) but prevents immediate operational crisis."
+          },
+          {
+            "id": "opt_halt_non_critical",
+            "label": "Halt non-critical operations to extend inventory runway",
+            "keywords": ["halt", "stop", "pause", "suspend", "non-critical", "reduce", "operations"],
+            "state_changes": {
+              "variables": {
+                "demand_pressure": 45,
+                "cash_reserves": 9200000,
+                "inventory_level": 55,
+                "customer_satisfaction": 35
+              }
+            },
+            "feedback": "Halting non-critical lines extends inventory runway by 3 weeks but customer satisfaction has collapsed. Significant revenue loss expected."
+          }
+        ]
+      }
+    ],
+    "event_triggers": [
+      {
+        "id": "evt_fuel_spike",
+        "condition": {
+          "variable": "fuel_cost_index",
+          "operator": "gt",
+          "value": 190
+        },
+        "event": {
+          "type": "fuel_price_spike",
+          "title": "Extreme Fuel Price Spike",
+          "description": "Fuel prices have exceeded 190% of baseline. An automatic $400K additional cost is incurred this round.",
+          "severity": "high",
+          "variable_changes": {
+            "cash_reserves": 9600000
+          }
+        }
+      },
+      {
+        "id": "evt_sanctions_risk",
+        "condition": {
+          "variable": "geopolitical_risk_level",
+          "operator": "gte",
+          "value": 4
+        },
+        "event": {
+          "type": "secondary_sanctions_risk",
+          "title": "Secondary Sanctions Risk Warning",
+          "description": "Legal counsel advises that some alternate suppliers may trigger secondary sanctions exposure. Insurance underwriter has flagged the policy.",
+          "severity": "medium",
+          "variable_changes": {}
+        }
+      },
+      {
+        "id": "evt_shortage_alert",
+        "condition": {
+          "variable": "inventory_level",
+          "operator": "lt",
+          "value": 35
+        },
+        "event": {
+          "type": "critical_shortage_alert",
+          "title": "Critical Inventory Shortage Alert",
+          "description": "Internal systems have triggered a Tier 1 shortage alert. All non-essential procurement suspended. Finance committee notified.",
+          "severity": "critical",
+          "variable_changes": {
+            "customer_satisfaction": -8
+          }
+        }
+      },
+      {
+        "id": "evt_cascade_failure",
+        "condition": {
+          "variable": "shipping_delay_days",
+          "operator": "gte",
+          "value": 20
+        },
+        "event": {
+          "type": "supply_chain_cascade",
+          "title": "Cascading Supply Chain Failure",
+          "description": "Extended shipping delays have triggered cascading failures in downstream production. Subcontractors are requesting force majeure provisions.",
+          "severity": "critical",
+          "variable_changes": {
+            "inventory_level": -8,
+            "customer_satisfaction": -10
+          }
+        }
+      },
+      {
+        "id": "evt_cash_warning",
+        "condition": {
+          "variable": "cash_reserves",
+          "operator": "lt",
+          "value": 6000000
+        },
+        "event": {
+          "type": "financial_distress_warning",
+          "title": "Financial Distress Warning",
+          "description": "Cash reserves have dropped below $6M. The financial controller has escalated to the CFO. Credit facility review initiated.",
+          "severity": "high",
+          "variable_changes": {}
+        }
+      }
+    ],
+    "outcome_conditions": [
+      {
+        "id": "oc_collapse",
+        "condition": {
+          "variable": "inventory_level",
+          "operator": "lt",
+          "value": 10
+        },
+        "outcome": "supply_chain_collapse",
+        "severity": "catastrophic",
+        "description": "Supply chain has completely collapsed. Operations suspended. Emergency board meeting convened. Regulatory and contractual penalties triggered."
+      },
+      {
+        "id": "oc_operational_crisis",
+        "condition": {
+          "variable": "cash_reserves",
+          "operator": "lt",
+          "value": 3000000
+        },
+        "outcome": "financial_crisis",
+        "severity": "critical",
+        "description": "Cash reserves have dropped below $3M. Immediate access to credit facilities required. Operations under severe financial stress."
+      },
+      {
+        "id": "oc_customer_loss",
+        "condition": {
+          "variable": "customer_satisfaction",
+          "operator": "lt",
+          "value": 30
+        },
+        "outcome": "major_customer_defection",
+        "severity": "high",
+        "description": "Customer satisfaction has collapsed below 30. Formal contract termination notices received from three major accounts."
+      },
+      {
+        "id": "oc_stabilised",
+        "condition": {
+          "variable": "inventory_level",
+          "operator": "gte",
+          "value": 70,
+          "and": {
+            "variable": "shipping_delay_days",
+            "operator": "lt",
+            "value": 7
+          }
+        },
+        "outcome": "operations_stabilised",
+        "severity": "success",
+        "description": "Supply chain has stabilised. Inventory is at 70%+ with minimal shipping delays. Normal operations are resuming."
+      },
+      {
+        "id": "oc_full_recovery",
+        "condition": {
+          "variable": "inventory_level",
+          "operator": "gte",
+          "value": 80,
+          "and": {
+            "variable": "cash_reserves",
+            "operator": "gte",
+            "value": 7000000
+          }
+        },
+        "outcome": "full_recovery",
+        "severity": "success",
+        "description": "Full operational recovery achieved. Inventory restored, financials healthy, and supply chain architecture strengthened."
+      }
+    ]
+  }
+}

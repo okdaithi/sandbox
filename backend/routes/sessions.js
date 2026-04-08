@@ -2,6 +2,7 @@ const express = require('express');
 const pool = require('../db/pool');
 const { authenticateToken } = require('../middleware/auth');
 const { createSessionValidation, submitDecisionValidation } = require('../middleware/validate');
+const { processDecision } = require('../engine/scenarioEngine');
 
 const router = express.Router();
 
@@ -83,32 +84,58 @@ router.get('/:id/decisions', authenticateToken, async (req, res, next) => {
   }
 });
 
-// Decisions are handled inline here and emit via the io instance attached to app
+// Decisions are processed through the scenario engine and persisted
 router.post('/:id/decisions', authenticateToken, submitDecisionValidation, async (req, res, next) => {
   const { id } = req.params;
   const { team_id, decision_data } = req.body;
   try {
+    // Fetch session current_state + scenario rules in one query
+    const sessionResult = await pool.query(
+      `SELECT s.current_state, sc.initial_state, sc.rules_definition
+       FROM sessions s
+       JOIN scenarios sc ON sc.id = s.scenario_id
+       WHERE s.id = $1`,
+      [id]
+    );
+    if (sessionResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+    const { current_state, initial_state, rules_definition } = sessionResult.rows[0];
+
+    // Run decision through the Game Master engine
+    const engineResult = processDecision(
+      { initial_state, rules_definition },
+      current_state,
+      decision_data
+    );
+
+    // Persist raw decision record (audit trail)
     await pool.query(
-      'INSERT INTO decisions (session_id, team_id, decision_data, timestamp) VALUES ($1, $2, $3, NOW())',
+      'INSERT INTO decisions (session_id, team_id, decision_data, timestamp, processed) VALUES ($1, $2, $3, NOW(), TRUE)',
       [id, team_id, JSON.stringify(decision_data)]
     );
 
-    // Append decision to session's current_state history
-    const stateResult = await pool.query(
-      `UPDATE sessions
-       SET current_state = jsonb_set(
-         COALESCE(current_state, '{"history": []}'),
-         '{history}',
-         COALESCE(current_state->'history', '[]') || $1::jsonb
-       )
-       WHERE id = $2
-       RETURNING current_state`,
-      [JSON.stringify([{ ...decision_data, timestamp: new Date().toISOString() }]), id]
+    // Persist the full engine-computed state
+    await pool.query(
+      'UPDATE sessions SET current_state = $1 WHERE id = $2',
+      [JSON.stringify(engineResult.state), id]
     );
 
-    const updatedState = stateResult.rows[0]?.current_state ?? { history: [] };
-    req.app.get('io').to(`session-${id}`).emit('state_updated', updatedState);
-    res.status(201).json({ message: 'Decision submitted' });
+    // Broadcast enriched state to all session participants
+    req.app.get('io').to(`session-${id}`).emit('state_updated', {
+      state:            engineResult.state,
+      feedback:         engineResult.feedback,
+      triggered_events: engineResult.triggered_events,
+      outcome_result:   engineResult.outcome_result,
+      decision_point:   engineResult.decision_point,
+      matched_option:   engineResult.matched_option,
+    });
+
+    res.status(201).json({
+      message:        'Decision submitted',
+      feedback:       engineResult.feedback,
+      outcome_result: engineResult.outcome_result,
+    });
   } catch (err) {
     next(err);
   }
