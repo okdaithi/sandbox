@@ -2,6 +2,8 @@ require('dotenv').config();
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
+const { createAdapter } = require('@socket.io/redis-adapter');
+const { createClient } = require('redis');
 const cors = require('cors');
 const helmet = require('helmet');
 const compression = require('compression');
@@ -31,6 +33,9 @@ app.use(cors({
 app.use(compression());
 app.use(express.json());
 app.use(cookieParser());
+
+// Health check — used by load balancer health checks
+app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Date() }));
 
 // Routes
 app.use('/api/auth', require('./routes/auth'));
@@ -76,9 +81,25 @@ app.use((err, req, res, next) => {
   res.status(err.status || 500).json({ error: 'Internal server error' });
 });
 
-const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => {
-  logger.info(`Server running on port ${PORT}`);
+async function start() {
+  // Initialize Socket.io Redis adapter for multi-replica support
+  const pubClient = createClient({ url: process.env.REDIS_URL || 'redis://localhost:6379' });
+  const subClient = pubClient.duplicate();
+  pubClient.on('error', (err) => logger.error('Redis pub client error', { err }));
+  subClient.on('error', (err) => logger.error('Redis sub client error', { err }));
+  await Promise.all([pubClient.connect(), subClient.connect()]);
+  io.adapter(createAdapter(pubClient, subClient));
+  logger.info('Socket.io Redis adapter initialized');
+
+  const PORT = process.env.PORT || 5000;
+  server.listen(PORT, () => {
+    logger.info(`Server running on port ${PORT}`);
+  });
+}
+
+start().catch((err) => {
+  logger.error('Failed to start server', { err });
+  process.exit(1);
 });
 
 // Graceful shutdown

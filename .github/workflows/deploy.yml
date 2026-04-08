@@ -1,0 +1,108 @@
+# CI/CD pipeline for DigitalOcean App Platform
+#
+# Required GitHub Secrets (Settings → Secrets → Actions):
+#   DIGITALOCEAN_ACCESS_TOKEN  — DO API token (doctl auth)
+#   DO_REGISTRY_NAME           — your DOCR registry name (e.g. "your-org")
+#   DO_APP_ID                  — App Platform app ID (from: doctl apps list)
+#   REACT_APP_API_URL          — public backend URL (e.g. "https://your-domain.com")
+#   DATABASE_URL               — managed PostgreSQL connection string (for migration)
+
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+env:
+  REGISTRY: registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        run: cd backend && npm ci
+
+      - name: Run backend tests
+        run: cd backend && npm test
+
+  build-and-push:
+    name: Build & Push Images
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+      - name: Authenticate with DOCR
+        run: doctl registry login --expiry-seconds 600
+
+      - name: Build and push backend image
+        run: |
+          docker build \
+            -t ${{ env.REGISTRY }}/backend:${{ github.sha }} \
+            -t ${{ env.REGISTRY }}/backend:latest \
+            -f docker/backend.Dockerfile \
+            ./backend
+          docker push ${{ env.REGISTRY }}/backend:${{ github.sha }}
+          docker push ${{ env.REGISTRY }}/backend:latest
+
+      - name: Build and push frontend image
+        run: |
+          docker build \
+            -t ${{ env.REGISTRY }}/frontend:${{ github.sha }} \
+            -t ${{ env.REGISTRY }}/frontend:latest \
+            --build-arg REACT_APP_API_URL=${{ secrets.REACT_APP_API_URL }} \
+            -f docker/frontend.Dockerfile \
+            ./frontend
+          docker push ${{ env.REGISTRY }}/frontend:${{ github.sha }}
+          docker push ${{ env.REGISTRY }}/frontend:latest
+
+  migrate:
+    name: Run DB Migration
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install PostgreSQL client
+        run: sudo apt-get install -y postgresql-client
+
+      - name: Apply schema migration
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        # schema.sql uses CREATE TABLE IF NOT EXISTS — safe to re-run
+        run: psql "$DATABASE_URL" -f database/schema.sql
+
+  deploy:
+    name: Deploy to App Platform
+    needs: migrate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+      - name: Trigger App Platform deployment
+        run: doctl apps create-deployment ${{ secrets.DO_APP_ID }} --wait
+
+      - name: Smoke test
+        # Give the deployment a moment to become healthy before testing
+        run: |
+          sleep 15
+          curl --fail --retry 5 --retry-delay 10 \
+            ${{ secrets.REACT_APP_API_URL }}/api/health
