@@ -166,7 +166,11 @@ The starting state that is deep-copied into `sessions.current_state` when a sess
   "keywords":     ["string", "..."],
   "state_changes": {
     "phase":     "string — optional phase transition",
-    "variables": { "variable_name": "new_value" }
+    "variables": { "variable_name": "new_value (absolute replacement)" },
+    "variables_delta": {
+      "variable_name": "number delta shorthand, e.g. -8",
+      "or_variable_name": { "op": "add", "value": -8 }
+    }
   },
   "feedback": "string — message returned to the team after this option is matched"
 }
@@ -199,12 +203,16 @@ The starting state that is deep-copied into `sessions.current_state` when a sess
     "title":            "string",
     "description":      "string",
     "severity":         "positive | medium | high | critical",
-    "variable_changes": { "variable_name": "new_value" }
+    "variable_changes": { "variable_name": "new_value (absolute replacement)" },
+    "variable_changes_delta": {
+      "variable_name": "number delta shorthand, e.g. -8",
+      "or_variable_name": { "op": "add", "value": -8 }
+    }
   }
 }
 ```
 
-Events fire **after** option state_changes are applied. Fired events are appended to `state.active_events` and deduplicated by `type` (each event type fires at most once per session).
+Events fire **after** option state_changes are applied. `variable_changes` performs absolute replacement, while `variable_changes_delta` applies additive deltas. Fired events are appended to `state.active_events` and deduplicated by `type` (each event type fires at most once per session).
 
 #### OutcomeCondition
 

@@ -132,18 +132,56 @@ function findActiveDecisionPoint(rules, phase, variables) {
 
 /**
  * Apply a state_changes block from a matched option to the current state.
- * Numeric variable changes are absolute replacements (use relative offsets
- * in rules if needed — engine does not add/subtract; scenarios define finals).
+ * Supports both:
+ * - absolute replacements via `variables`
+ * - relative updates via `variables_delta`
+ *
+ * Delta values may be numeric shorthand:
+ *   { customer_satisfaction: -8 }
+ * or structured operations:
+ *   { customer_satisfaction: { op: 'add', value: -8 } }
  */
 function applyStateChanges(state, changes) {
   if (!changes) return state;
 
-  const { variables: varChanges, ...topLevelChanges } = changes;
+  const {
+    variables: varChangesAbsolute,
+    variables_delta: varChangesDelta,
+    ...topLevelChanges
+  } = changes;
 
   const next = { ...state, ...topLevelChanges };
 
-  if (varChanges) {
-    next.variables = { ...state.variables, ...varChanges };
+  if (varChangesAbsolute || varChangesDelta) {
+    const mergedVariables = { ...(state.variables || {}) };
+
+    if (varChangesAbsolute) {
+      Object.assign(mergedVariables, varChangesAbsolute);
+    }
+
+    if (varChangesDelta) {
+      for (const [key, deltaSpec] of Object.entries(varChangesDelta)) {
+        const current = mergedVariables[key];
+
+        if (typeof deltaSpec === 'number') {
+          const base = typeof current === 'number' ? current : 0;
+          mergedVariables[key] = base + deltaSpec;
+          continue;
+        }
+
+        if (
+          deltaSpec
+          && typeof deltaSpec === 'object'
+          && deltaSpec.op === 'add'
+          && typeof deltaSpec.value === 'number'
+        ) {
+          const base = typeof current === 'number' ? current : 0;
+          mergedVariables[key] = base + deltaSpec.value;
+        }
+      }
+    }
+
+    next.variables = mergedVariables;
   }
 
   return next;
@@ -151,7 +189,8 @@ function applyStateChanges(state, changes) {
 
 /**
  * Evaluate all event triggers and return those whose conditions fire against
- * current state variables. Also applies any variable_changes from fired events.
+ * current state variables. Also applies any variable_changes (absolute) and
+ * variable_changes_delta (relative) from fired events.
  *
  * Returns { triggeredEvents, nextState } so variable cascades are included.
  */
@@ -167,8 +206,11 @@ function evaluateTriggers(triggers, state) {
       triggeredEvents.push(event);
 
       // Apply any cascading variable changes from the triggered event
-      if (event.variable_changes) {
-        nextState = applyStateChanges(nextState, { variables: event.variable_changes });
+      if (event.variable_changes || event.variable_changes_delta) {
+        nextState = applyStateChanges(nextState, {
+          variables: event.variable_changes,
+          variables_delta: event.variable_changes_delta,
+        });
       }
     }
   }

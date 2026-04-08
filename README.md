@@ -105,7 +105,9 @@ Decision processing model:
 1. Load current session state (or scenario initial state).
 2. Perform keyword matching against option keyword arrays.
 3. Evaluate trigger conditions (`gt`, `gte`, `lt`, composite conditions, etc.).
-4. Apply `state_changes` (phase + variable mutation).
+4. Apply `state_changes`:
+   - `variables` = absolute replacement (`{ "cash_reserves": 7000000 }`)
+   - `variables_delta` = relative mutation (`{ "cash_reserves": -400000 }` or `{ "cash_reserves": { "op": "add", "value": -400000 } }`)
 5. Evaluate event triggers and outcome conditions.
 6. Return canonical result object used for API response and socket broadcast.
 
@@ -360,4 +362,3 @@ Then login via UI or `POST /api/auth/login`.
 - **Phase 2**: richer facilitator tooling, team/session administration enhancements, improved validation.
 - **Phase 3**: analytics, replay/export refinements, scenario authoring UX.
 - **Phase 4**: advanced multi-instance scale tuning, observability, enterprise hardening.
-
