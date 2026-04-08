@@ -189,6 +189,7 @@ Required tools:
 
 6. **Schema bootstrapping behavior**
    - On first DB initialization, PostgreSQL loads `database/schema.sql` through `docker-entrypoint-initdb.d`.
+   - `database/schema.sql` is migration-style and assumes the target DB is already selected by the runtime environment (for Docker this is handled by `POSTGRES_DB`).
    - You do **not** need to run schema manually for first boot with a fresh DB volume.
 
 7. **Seed scenarios (manual step, required)**
@@ -215,10 +216,14 @@ Required tools:
 Use this when developing without containers.
 
 1. Install and run PostgreSQL 15 + Redis 7 locally.
-2. Create DB + apply schema:
+2. Create DB + apply schema (manual setup):
    ```bash
    createdb scenario_planning
    psql -d scenario_planning -f database/schema.sql
+   ```
+   Alternatively, run the optional bootstrap script from an existing database connection:
+   ```bash
+   psql -d postgres -f database/bootstrap.sql
    ```
 3. Seed scenarios:
    ```bash
