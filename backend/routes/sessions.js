@@ -2,7 +2,7 @@ const express = require('express');
 const pool = require('../db/pool');
 const { authenticateToken } = require('../middleware/auth');
 const { createSessionValidation, submitDecisionValidation } = require('../middleware/validate');
-const { processDecision } = require('../engine/scenarioEngine');
+const { submitDecision } = require('../services/decisionService');
 
 const router = express.Router();
 
@@ -89,53 +89,14 @@ router.post('/:id/decisions', authenticateToken, submitDecisionValidation, async
   const { id } = req.params;
   const { team_id, decision_data } = req.body;
   try {
-    // Fetch session current_state + scenario rules in one query
-    const sessionResult = await pool.query(
-      `SELECT s.current_state, sc.initial_state, sc.rules_definition
-       FROM sessions s
-       JOIN scenarios sc ON sc.id = s.scenario_id
-       WHERE s.id = $1`,
-      [id]
-    );
-    if (sessionResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Session not found' });
-    }
-    const { current_state, initial_state, rules_definition } = sessionResult.rows[0];
-
-    // Run decision through the Game Master engine
-    const engineResult = processDecision(
-      { initial_state, rules_definition },
-      current_state,
-      decision_data
-    );
-
-    // Persist raw decision record (audit trail)
-    await pool.query(
-      'INSERT INTO decisions (session_id, team_id, decision_data, timestamp, processed) VALUES ($1, $2, $3, NOW(), TRUE)',
-      [id, team_id, JSON.stringify(decision_data)]
-    );
-
-    // Persist the full engine-computed state
-    await pool.query(
-      'UPDATE sessions SET current_state = $1 WHERE id = $2',
-      [JSON.stringify(engineResult.state), id]
-    );
-
-    // Broadcast enriched state to all session participants
-    req.app.get('io').to(`session-${id}`).emit('state_updated', {
-      state:            engineResult.state,
-      feedback:         engineResult.feedback,
-      triggered_events: engineResult.triggered_events,
-      outcome_result:   engineResult.outcome_result,
-      decision_point:   engineResult.decision_point,
-      matched_option:   engineResult.matched_option,
+    const result = await submitDecision({
+      app: req.app,
+      sessionId: id,
+      teamId: team_id,
+      decisionData: decision_data,
+      user: req.user
     });
-
-    res.status(201).json({
-      message:        'Decision submitted',
-      feedback:       engineResult.feedback,
-      outcome_result: engineResult.outcome_result,
-    });
+    res.status(result.status).json(result.body);
   } catch (err) {
     next(err);
   }

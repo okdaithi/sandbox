@@ -36,7 +36,18 @@ const createSessionValidation = [
 const submitDecisionValidation = [
   param('id').trim().notEmpty().isUUID().withMessage('Valid session id UUID is required'),
   body('team_id').trim().notEmpty().isUUID().withMessage('Valid team_id UUID is required'),
-  body('decision_data').notEmpty().withMessage('decision_data is required'),
+  body('decision_data')
+    .isObject().withMessage('decision_data must be an object')
+    .custom((decisionData) => {
+      const hasAction = typeof decisionData.action === 'string' && decisionData.action.trim().length > 0;
+      const hasOptionId = typeof decisionData.option_id === 'string' && decisionData.option_id.trim().length > 0;
+
+      if (!hasAction && !hasOptionId) {
+        throw new Error('decision_data must include a non-empty action or option_id');
+      }
+
+      return true;
+    }),
   handleValidationErrors
 ];
 
