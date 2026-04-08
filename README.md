@@ -2,388 +2,357 @@
 
 ## 1. System Overview
 
-The Interactive Scenario Planning Web Application is a real-time, multi-team collaborative platform that simulates scenario planning exercises. It presents dynamic scenarios to professional teams, accepts concurrent decision inputs, processes them through deterministic logic, and updates scenario states in near real-time. The system captures all interactions for auditability and analysis, supporting extensible scenario definitions and replay capabilities.
+The Interactive Scenario Planning Web Application is a real-time training platform for running structured decision simulations. Teams submit decisions, a deterministic scenario engine evaluates those decisions, and all participants receive synchronized state updates.
 
 Key characteristics:
-- Concurrent multi-team interaction (5-50 teams)
-- Deterministic scenario progression
-- Real-time state updates via WebSockets
-- Structured data logging for post-exercise analysis
-- Facilitator controls for scenario management
-- Extensible scenario engine
+- Real-time collaborative sessions with multiple teams.
+- Deterministic scenario progression driven by JSON-defined rules.
+- Persistent audit trail of decisions and state changes.
+- Facilitator-first operational model for creating and controlling sessions.
+- Deployable locally (Docker or bare-metal) and on DigitalOcean App Platform.
 
-Assumptions:
-- Moderate concurrency (5-50 teams)
-- Web browser-based UI
-- Standard cloud deployment (AWS/GCP/Azure or local)
-- No proprietary dependencies
+---
 
-## 2. Architecture Diagram (Textual Description)
+## 2. Architecture (Implemented)
 
-```
-[Frontend Layer]
-├── Team Dashboard (React SPA)
-├── Facilitator Control Panel (React SPA)
-└── Admin Interface (React SPA)
+### Runtime stack
+- **Frontend**: React 18 + TypeScript + MUI + Redux + Socket.io client (`localhost:3000`)
+- **Backend**: Node.js 20 + Express + Socket.io server (`localhost:5000`)
+- **Database**: PostgreSQL 15 (`localhost:5432`)
+- **Cache / PubSub**: Redis 7 (`localhost:6379`)
+- **Real-time scaling**: Socket.io Redis adapter (pub/sub across backend instances)
 
-[Real-Time Communication Layer]
-├── WebSocket Server (Socket.io)
-├── Event Bus (Redis Pub/Sub)
-└── Message Queue (Redis)
+### ASCII architecture diagram
 
-[Backend API Layer]
-├── REST API (Express.js)
-├── Authentication Service (JWT)
-├── Scenario Engine API
-└── Data Export API
-
-[Scenario Engine]
-├── State Manager (In-memory + Redis)
-├── Rules Processor (Custom logic)
-├── Decision Resolver (Conflict handling)
-└── Scenario Loader (JSON/YAML definitions)
-
-[Data Storage Layer]
-├── Primary Database (PostgreSQL)
-│   ├── Scenarios
-│   ├── Teams
-│   ├── Decisions
-│   ├── Sessions
-│   └── Audit Logs
-├── Cache (Redis)
-└── File Storage (Local/Cloud) for exports
-
-[Infrastructure]
-├── Load Balancer (Nginx)
-├── Application Server (Node.js)
-├── Database Server (PostgreSQL)
-└── Cache Server (Redis)
+```text
+┌─────────────────────────────────────────────────────────────────────┐
+│                              Browser                                │
+│               React + Redux + MUI + Socket.io client               │
+└───────────────────────────────┬─────────────────────────────────────┘
+                                │ HTTP + WebSocket
+                                ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                    Node.js 20 / Express / Socket.io                │
+│  - REST API (/api/auth, /api/scenarios, /api/sessions, /api/health)│
+│  - Auth (JWT in httpOnly cookie)                                    │
+│  - Scenario Engine (decision processing + state mutation)           │
+└───────────────────┬───────────────────────────────┬─────────────────┘
+                    │                               │
+                    ▼                               ▼
+      ┌────────────────────────────┐     ┌──────────────────────────┐
+      │      PostgreSQL 15         │     │          Redis 7         │
+      │ users/scenarios/sessions   │     │ cache + Socket.io pub/sub│
+      │ decisions/teams/audit_logs │     │                          │
+      └────────────────────────────┘     └──────────────────────────┘
 ```
 
-Data flows:
-1. Teams submit decisions via Frontend → WebSocket → Backend API → Scenario Engine
-2. Scenario Engine processes → Updates state → Publishes events → Real-time updates to all clients
-3. All interactions logged to database for audit and export
+---
 
-## 3. Core Components Breakdown
+## 3. Core Components
 
-### Frontend Interface
-- **Technology**: React with TypeScript, Material-UI
-- **Purpose**: Provides interactive dashboards for teams and facilitators
-- **Features**: Real-time scenario display, decision input forms, outcome visualization
-- **State Management**: Redux for local state, WebSocket for server sync
+### Frontend components
+- **Login**: user authentication entry point.
+- **Dashboard**: scenario/session view for participants.
+- **FacilitatorPanel**: facilitator tools (lazy-loaded).
 
-### Backend API Layer
-- **Technology**: Node.js with Express.js
-- **Purpose**: Handles HTTP requests, authentication, and business logic
-- **Features**: RESTful endpoints for CRUD operations, JWT authentication, input validation
+### Backend route modules (implemented)
+- `auth` routes for login/register/logout.
+- `scenarios` routes for list/detail reads.
+- `sessions` routes for session lifecycle and decision submission/retrieval.
 
 ### Scenario Engine
-- **Technology**: Node.js module with custom logic
-- **Purpose**: Manages scenario state, processes decisions, enforces rules
-- **Features**: Deterministic state transitions, conflict resolution, extensible rule definitions
+The engine processes decision payloads against the scenario’s `rules_definition` and current session state:
+1. Evaluate conditions.
+2. Match keywords to decision options.
+3. Apply state mutations.
+4. Evaluate outcomes.
+5. Return enriched feedback + updated state.
 
-### Real-Time Communication Layer
-- **Technology**: Socket.io with Redis adapter
-- **Purpose**: Enables live updates across all connected clients
-- **Features**: Event broadcasting, room-based messaging for team isolation
+### Primary data flows
+- **Auth flow**: login/register → JWT cookie issuance → authenticated API access.
+- **Decision flow**: decision submission → engine execution → DB persistence → state update broadcast.
+- **Real-time flow**: user joins session socket room → backend emits `state_updated` / status events.
 
-### Data Storage Layer
-- **Technology**: PostgreSQL for relational data, Redis for cache and pub/sub
-- **Purpose**: Persistent storage of scenarios, decisions, and audit logs
-- **Features**: ACID transactions for data integrity, indexed queries for analytics
+---
 
-### Admin/Control Interface
-- **Technology**: React admin panel
-- **Purpose**: Facilitator controls for scenario progression, team management
-- **Features**: Scenario loading, session controls, real-time monitoring
+## 4. Data Model (Current Schema)
 
-## 4. Data Model (Tables/Entities + Fields)
-
-### Scenarios
-- id (UUID, PK)
-- name (VARCHAR(255))
-- description (TEXT)
-- initial_state (JSONB)
-- rules_definition (JSONB)
-- created_at (TIMESTAMP)
-- updated_at (TIMESTAMP)
-
-### Teams
-- id (UUID, PK)
-- session_id (UUID, FK)
-- name (VARCHAR(255))
-- members (JSONB array of user objects)
-- created_at (TIMESTAMP)
-
-### Sessions
-- id (UUID, PK)
-- scenario_id (UUID, FK)
-- facilitator_id (UUID, FK)
-- status (ENUM: 'pending', 'active', 'completed', 'paused')
-- start_time (TIMESTAMP)
-- end_time (TIMESTAMP)
-- current_state (JSONB)
-
-### Decisions
-- id (UUID, PK)
-- session_id (UUID, FK)
-- team_id (UUID, FK)
-- decision_data (JSONB)
-- timestamp (TIMESTAMP)
-- processed (BOOLEAN)
-
-### AuditLogs
-- id (UUID, PK)
-- session_id (UUID, FK)
-- event_type (VARCHAR(100))
-- event_data (JSONB)
-- timestamp (TIMESTAMP)
-
-### Users
-- id (UUID, PK)
-- username (VARCHAR(255), UNIQUE)
-- role (ENUM: 'facilitator', 'team_member')
-- created_at (TIMESTAMP)
+Tables:
+- `users` (`id`, `username`, `password_hash`, `role`, `created_at`)
+- `scenarios` (`id`, `name`, `description`, `initial_state`, `rules_definition`, timestamps)
+- `sessions` (`id`, `scenario_id`, `facilitator_id`, `status`, timing fields, `current_state`)
+- `teams` (`id`, `session_id`, `name`, `members`)
+- `decisions` (`id`, `session_id`, `team_id`, `decision_data`, `timestamp`, `processed`)
+- `audit_logs` (`id`, `session_id`, `event_type`, `event_data`, `timestamp`)
 
 Relationships:
-- Sessions → Scenarios (many-to-one)
-- Teams → Sessions (many-to-one)
-- Decisions → Sessions (many-to-one), Decisions → Teams (many-to-one)
-- AuditLogs → Sessions (many-to-one)
+- `sessions.scenario_id` → `scenarios.id`
+- `sessions.facilitator_id` → `users.id`
+- `teams.session_id` → `sessions.id`
+- `decisions.session_id` → `sessions.id`
+- `decisions.team_id` → `teams.id`
+- `audit_logs.session_id` → `sessions.id`
+
+---
 
 ## 5. Scenario Engine Design
 
-### State Model
-Scenarios represented as finite state machines with:
-- Current state (JSON object with scenario variables)
-- Available actions (defined per state)
-- Transition rules (conditions for state changes)
+Scenario definitions are JSON-driven:
+- `initial_state`: starting phase, variables, history.
+- `rules_definition`: actors, decision points, keyword-based options, event triggers, and outcome conditions.
 
-### Input Schema
-Team decisions structured as:
-```json
-{
-  "action_type": "string",
-  "parameters": "object",
-  "rationale": "string (optional)",
-  "timestamp": "ISO string"
-}
-```
+Decision processing model:
+1. Load current session state (or scenario initial state).
+2. Perform keyword matching against option keyword arrays.
+3. Evaluate trigger conditions (`gt`, `gte`, `lt`, composite conditions, etc.).
+4. Apply `state_changes` (phase + variable mutation).
+5. Evaluate event triggers and outcome conditions.
+6. Return canonical result object used for API response and socket broadcast.
 
-### Rules Engine Framework
-- Rule-based system using JSON-defined conditions
-- Example rule:
-```json
-{
-  "condition": "state.variable > threshold",
-  "action": "transition_to_state",
-  "parameters": {"new_state": "crisis"}
-}
-```
+---
 
-### Event Processing Pipeline
-1. Receive decision input
-2. Validate against current state
-3. Apply rules to determine outcomes
-4. Update scenario state
-5. Publish state change events
-6. Log all actions
+## 6. Real-Time Communication
 
-### Decision Resolution Logic
-- Sequential processing of decisions in timestamp order
-- Conflict resolution: Last-writer-wins for conflicting actions, with audit logging
-- Deterministic outcomes based on predefined rules
+Socket.io is used for live synchronization:
+- Client authenticates socket with JWT token in handshake auth.
+- Client joins `session-{id}` room using `join_session` event.
+- Server broadcasts scenario progression events (for example `state_updated`, `session_status_changed`) to room participants.
+- Redis adapter enables pub/sub-backed fan-out when backend replicas are scaled.
 
-### Timing Model
-- Turn-based: Facilitator advances turns manually
-- Continuous: Real-time processing with configurable delays
-- Hybrid: Turns with time limits
+---
 
-## 6. Real-Time Interaction Design
+## 7. API Specification (Implemented Endpoints Only)
 
-### WebSocket Architecture
-- Socket.io for bidirectional communication
-- Rooms for session isolation
-- Events: 'decision_submitted', 'state_updated', 'turn_advanced'
+> Note: except for health check, routes are protected by auth middleware and require valid JWT context.
 
-### Event Flow
-1. Team submits decision → Frontend emits 'submit_decision'
-2. Backend validates and processes → Updates state
-3. Backend emits 'state_update' to all session participants
-4. Frontend receives and updates UI
-
-### Conflict Handling
-- Queue decisions with timestamps
-- Process in order, log conflicts
-- Notify teams of conflicting inputs
-
-### Scalability
-- Redis adapter for Socket.io clustering
-- Horizontal scaling of backend instances
-
-## 7. API Specification (Endpoint List with Purpose)
-
-### Authentication
-- POST /api/auth/login - User authentication, returns JWT
-- POST /api/auth/register - User registration
+### Auth
+- `POST /api/auth/login`
+- `POST /api/auth/register`
+- `POST /api/auth/logout`
 
 ### Scenarios
-- GET /api/scenarios - List available scenarios
-- POST /api/scenarios - Create new scenario (admin only)
-- GET /api/scenarios/:id - Get scenario details
-- PUT /api/scenarios/:id - Update scenario (admin only)
+- `GET /api/scenarios`
+- `GET /api/scenarios/:id`
 
 ### Sessions
-- POST /api/sessions - Create new session
-- GET /api/sessions/:id - Get session details
-- PUT /api/sessions/:id/status - Update session status
-- POST /api/sessions/:id/decisions - Submit team decision
+- `POST /api/sessions`
+- `GET /api/sessions/:id`
+- `PATCH /api/sessions/:id/status`
+- `POST /api/sessions/:id/decisions`
+- `GET /api/sessions/:id/decisions`
 
-### Teams
-- POST /api/sessions/:id/teams - Create team
-- GET /api/sessions/:id/teams - List teams in session
+### Health
+- `GET /api/health`
 
-### Data Export
-- GET /api/sessions/:id/export - Export session data (CSV/JSON)
+---
 
-### Admin
-- GET /api/admin/sessions - List all sessions
-- GET /api/admin/metrics - System metrics
+## 8. Prerequisites
 
-All endpoints return JSON, use JWT for authentication.
+Required tools:
+- **Docker 24+** and **Docker Compose v2+** (recommended path).
+- **Node.js 20+** and **npm 10+** (bare-metal dev path).
+- **PostgreSQL client (`psql`)** for schema/seed execution.
+- **doctl CLI** for DigitalOcean deployment automation.
 
-## 8. Frontend Design (Key Screens + Flows)
+---
 
-### Team Dashboard
-- Scenario state display (charts, maps, text)
-- Decision input form (dynamic based on scenario)
-- Team chat/history
-- Real-time outcome updates
+## 9. Local Deployment — Option A (Docker Compose, Recommended)
 
-### Facilitator Control Panel
-- Session overview (all teams, current state)
-- Manual turn advancement
-- Scenario pause/resume controls
-- Real-time monitoring dashboard
+1. **Clone repository**
+   ```bash
+   git clone <your-repo-url>
+   cd sandbox
+   ```
 
-### Admin Interface
-- Scenario management (create/edit)
-- User management
-- System logs and analytics
+2. **Create environment file**
+   ```bash
+   cp docker/.env.example docker/.env
+   ```
+   Edit values, especially credentials and `JWT_SECRET`.
 
-### UI Flows
-1. Login → Select role (team/facilitator)
-2. Join/Create session
-3. Scenario briefing
-4. Decision rounds (repeat until completion)
-5. Debrief with data export
+3. **Generate strong JWT secret**
+   ```bash
+   openssl rand -hex 64
+   ```
+   Paste output into `docker/.env` as `JWT_SECRET`.
 
-## 9. Technology Stack Justification
+4. **Build and start all services**
+   ```bash
+   docker compose -f docker/docker-compose.yml up -d --build
+   ```
 
-### Frontend: React + TypeScript + Material-UI
-- Component reusability for dynamic scenarios
-- Type safety for complex state management
-- Mature ecosystem for real-time apps
+5. **Verify service health**
+   ```bash
+   docker compose -f docker/docker-compose.yml ps
+   docker compose -f docker/docker-compose.yml logs -f backend
+   ```
 
-### Backend: Node.js + Express.js
-- JavaScript full-stack consistency
-- High concurrency handling
-- Rich npm ecosystem for real-time features
+6. **Schema bootstrapping behavior**
+   - On first DB initialization, PostgreSQL loads `database/schema.sql` through `docker-entrypoint-initdb.d`.
+   - You do **not** need to run schema manually for first boot with a fresh DB volume.
 
-### Database: PostgreSQL
-- ACID compliance for audit requirements
-- JSONB for flexible scenario data
-- Robust querying for analytics
+7. **Seed scenarios (manual step, required)**
+   ```bash
+   docker compose -f docker/docker-compose.yml exec -T db \
+     psql -U dbuser -d scenario_planning -f /dev/stdin < database/seed-scenarios.sql
+   ```
 
-### Real-Time: Socket.io + Redis
-- Reliable WebSocket implementation
-- Scalable pub/sub for multi-instance deployment
+8. **Create a facilitator account**
+   ```bash
+   curl -X POST http://localhost:5000/api/auth/register \
+     -H 'Content-Type: application/json' \
+     -d '{"username":"admin","password":"securepass123","role":"facilitator"}'
+   ```
 
-### Deployment: Docker + Kubernetes
-- Containerization for consistent environments
-- Orchestration for scaling and reliability
+9. **Open the app**
+   - Frontend: http://localhost:3000
+   - Backend health: http://localhost:5000/api/health
 
-## 10. Development Roadmap (Phased)
+---
 
-### Phase 1: MVP (4-6 weeks)
-- Basic scenario engine with static scenarios
-- Single-team interaction
-- REST API for decisions
-- Simple frontend dashboard
-- Data logging
+## 10. Local Deployment — Option B (Bare Metal)
 
-### Phase 2: Multi-Team Real-Time (4-6 weeks)
-- WebSocket integration
-- Concurrent team support
-- Conflict resolution
-- Facilitator controls
+Use this when developing without containers.
 
-### Phase 3: Advanced Features (4-6 weeks)
-- Dynamic scenario loading
-- Replay capability
-- Data export and analytics
-- Admin interface
+1. Install and run PostgreSQL 15 + Redis 7 locally.
+2. Create DB + apply schema:
+   ```bash
+   createdb scenario_planning
+   psql -d scenario_planning -f database/schema.sql
+   ```
+3. Seed scenarios:
+   ```bash
+   psql -d scenario_planning -f database/seed-scenarios.sql
+   ```
+4. Start backend:
+   ```bash
+   cp backend/.env.example backend/.env
+   # edit DATABASE_URL, REDIS_URL, JWT_SECRET, FRONTEND_URL, PORT
+   cd backend
+   npm install
+   npm run dev
+   ```
+5. Start frontend:
+   ```bash
+   cd frontend
+   npm install
+   REACT_APP_API_URL=http://localhost:5000 npm start
+   ```
+6. Access app: http://localhost:3000
 
-### Phase 4: Production (2-4 weeks)
-- Security hardening
-- Performance optimization
-- Comprehensive testing
-- Documentation
+---
 
-### Testing Strategy
-- Unit tests: Component and API logic
-- Integration tests: End-to-end decision flows
-- Simulation tests: Load testing with virtual teams
-- Manual testing: Real user scenarios
+## 11. Environment Variable Reference
 
-## 11. Risk Analysis and Mitigations
+| Variable | Used by | Description | Example |
+|---|---|---|---|
+| `POSTGRES_DB` | docker-compose, db | Database name | `scenario_planning` |
+| `POSTGRES_USER` | docker-compose, db | DB username | `dbuser` |
+| `POSTGRES_PASSWORD` | docker-compose, db | DB password | `strong_password_here` |
+| `DATABASE_URL` | backend | Full PostgreSQL connection string | `postgresql://dbuser:pass@db:5432/scenario_planning` |
+| `REDIS_URL` | backend | Redis connection string | `redis://redis:6379` |
+| `JWT_SECRET` | backend | JWT signing secret (min 32+ chars recommended) | `$(openssl rand -hex 64)` |
+| `NODE_ENV` | backend | Runtime mode | `production` / `development` |
+| `FRONTEND_URL` | backend | Allowed CORS origin | `http://localhost:3000` |
+| `PORT` | backend | Backend port (default 5000) | `5000` |
+| `REACT_APP_API_URL` | frontend build arg/runtime env | Backend URL embedded in frontend build | `http://localhost:5000` |
 
-### Latency Issues
-- Risk: High latency in real-time updates affects user experience
-- Mitigation: Optimize WebSocket connections, use CDN, implement client-side caching
+---
 
-### Conflicting Inputs
-- Risk: Simultaneous decisions cause state corruption
-- Mitigation: Timestamp-based ordering, atomic state updates, conflict logging
+## 12. Cloud Deployment — DigitalOcean App Platform
 
-### State Corruption
-- Risk: Bugs in scenario logic lead to invalid states
-- Mitigation: Comprehensive validation, rollback mechanisms, extensive testing
+### 12.1 Create DigitalOcean resources
+1. Container Registry:
+   ```bash
+   doctl registry create your-org --subscription-tier starter
+   ```
+2. Managed PostgreSQL: create in DO console or `doctl databases create ...`
+3. Managed Redis: create in DO console or `doctl databases create --engine redis ...`
 
-### Scalability Limits
-- Risk: Beyond 50 teams, performance degrades
-- Mitigation: Horizontal scaling, database optimization, load balancing
+### 12.2 Configure GitHub Secrets
+In **GitHub → Settings → Secrets and variables → Actions**, configure:
+- `DIGITALOCEAN_ACCESS_TOKEN`
+- `DO_REGISTRY_NAME` (e.g. `your-org`)
+- `DO_APP_ID` (from `doctl apps list`, after initial create)
+- `REACT_APP_API_URL` (public base URL, e.g. `https://your-domain.com`)
+- `DATABASE_URL` (managed PostgreSQL URL)
 
-### Data Integrity
-- Risk: Audit logs incomplete or corrupted
-- Mitigation: Transactional logging, backup strategies, integrity checks
+### 12.3 Customize `do-app-spec.yaml`
+- Replace `your-org` with your DOCR registry name.
+- Replace `https://your-domain.com` with real public domain.
+- Set `JWT_SECRET`, `DATABASE_URL`, and `REDIS_URL` as secrets.
 
-### Security
-- Risk: Unauthorized access to sessions
-- Mitigation: JWT authentication, input sanitization, rate limiting
+### 12.4 First deployment (one-time)
+1. Build/push images manually or trigger CI by pushing to `main`.
+2. Create app:
+   ```bash
+   doctl apps create --spec do-app-spec.yaml
+   ```
+3. Capture returned app ID and store it as `DO_APP_ID` GitHub secret.
+4. Run schema migration:
+   ```bash
+   psql "$DATABASE_URL" -f database/schema.sql
+   ```
+5. Seed scenarios:
+   ```bash
+   psql "$DATABASE_URL" -f database/seed-scenarios.sql
+   ```
 
-## 12. Extension Capabilities
+### 12.5 Subsequent deployments
+Push to `main`; the workflow executes:
+1. test
+2. image build + push
+3. schema migration
+4. App Platform deployment trigger
+5. smoke test (`/api/health`)
 
-### New Scenario Types
-- Plugin architecture for custom rules engines
-- JSON schema validation for scenario definitions
+### 12.6 Cost guidance (approximate)
+- Backend `basic-xs`: ~USD $12/month
+- Frontend `basic-xxs`: ~USD $5/month
+- Plus managed PostgreSQL + managed Redis pricing
 
-### Integration Points
-- REST APIs for external data sources
-- Webhooks for third-party notifications
+---
 
-### Analytics Enhancements
-- Machine learning for decision pattern analysis
-- Advanced visualization libraries
+## 13. First Login / Initial Setup
 
-### Multi-Platform Support
-- Mobile app versions using React Native
-- API-first design enables other clients
+Important:
+- `database/schema.sql` includes placeholder users with **example** bcrypt hashes not intended for real login.
+- Register an actual facilitator account after deployment.
 
-### Unresolved Dependencies
-- Specific scenario domain knowledge (business logic)
-- UI design assets and branding
+Example API call:
+```bash
+curl -X POST http://localhost:5000/api/auth/register \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"admin","password":"securepass123","role":"facilitator"}'
+```
 
-### Confidence Level
-High confidence in architecture robustness for defined requirements. All components integrate coherently with clear data flows. Real-time constraints satisfiable under assumptions. Trade-offs (e.g., eventual consistency vs. strong consistency) defined with consequences.
+Then login via UI or `POST /api/auth/login`.
+
+---
+
+## 14. Technology Stack Justification (Trimmed)
+
+- **React + TypeScript + MUI**: fast UI delivery with type safety and accessible component system.
+- **Node.js + Express**: straightforward API and socket integration with low operational complexity.
+- **PostgreSQL**: reliable relational core with JSONB support for scenario payloads.
+- **Redis**: low-latency cache and pub/sub backbone for real-time scaling.
+- **Socket.io**: robust browser/server real-time abstraction with fallback behavior and room semantics.
+
+---
+
+## 15. Risk Analysis (Trimmed)
+
+- **State consistency under concurrency**: mitigate with deterministic engine behavior and serialized write patterns.
+- **Auth/session security**: enforce strong JWT secret management and secure cookie settings in production.
+- **Scenario quality risk**: malformed JSON rules can produce weak exercises; validate scenario definitions before release.
+- **Operational risk**: missed seed/migration steps can leave environment partially functional; use CI migration and smoke tests.
+
+---
+
+## 16. Development Roadmap
+
+- **Phase 1 (Complete)**: auth, scenario read APIs, session lifecycle, decision submission, real-time updates, Dockerization.
+- **Phase 2**: richer facilitator tooling, team/session administration enhancements, improved validation.
+- **Phase 3**: analytics, replay/export refinements, scenario authoring UX.
+- **Phase 4**: advanced multi-instance scale tuning, observability, enterprise hardening.
+
