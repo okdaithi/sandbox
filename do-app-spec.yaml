@@ -1,14 +1,50 @@
-# DigitalOcean App Platform specification
-# Deploy with: doctl apps create --spec do-app-spec.yaml
-# Update with: doctl apps update <APP_ID> --spec do-app-spec.yaml
+# DigitalOcean App Platform Specification
 #
-# Before first deploy:
-#   1. Create a Container Registry:  doctl registry create your-org
-#   2. Create Managed PostgreSQL:    via DO console or doctl databases create
-#   3. Create Managed Redis:         via DO console or doctl databases create
-#   4. Build & push images:          see .github/workflows/deploy.yml
-#   5. Run DB schema once:           psql "$DATABASE_URL" -f database/schema.sql
-#   6. Replace ALL <placeholder> values below with real values
+# DEPLOYMENT CHECKLIST — complete steps in order:
+#
+#   [ ] 1. Install doctl CLI:
+#          https://docs.digitalocean.com/reference/doctl/how-to/install/
+#
+#   [ ] 2. Authenticate doctl:
+#          doctl auth init
+#
+#   [ ] 3. Create a Container Registry (one-time):
+#          doctl registry create <your-org> --subscription-tier starter
+#
+#   [ ] 4. Create a Managed PostgreSQL database:
+#          DO Console → Databases → Create → PostgreSQL
+#          (note the connection string for DATABASE_URL below)
+#
+#   [ ] 5. Create a Managed Redis database:
+#          DO Console → Databases → Create → Redis
+#          (note the connection string for REDIS_URL below)
+#
+#   [ ] 6. Set GitHub Secrets (repo → Settings → Secrets → Actions):
+#          - DIGITALOCEAN_ACCESS_TOKEN  → from https://cloud.digitalocean.com/account/api/tokens
+#          - DO_REGISTRY_NAME           → your registry name from step 3 (e.g. "your-org")
+#          - DO_APP_ID                  → leave blank for now; fill in after step 8
+#          - REACT_APP_API_URL          → your public domain (e.g. "https://app.example.com")
+#          - DATABASE_URL               → managed PostgreSQL connection string from step 4
+#
+#   [ ] 7. Replace every "your-org" and "your-domain.com" in this file with real values.
+#          Search for: your-org   your-domain.com
+#
+#   [ ] 8. First deploy (creates the app):
+#          doctl apps create --spec do-app-spec.yaml
+#
+#   [ ] 9. Get the App ID and save it as the DO_APP_ID GitHub Secret:
+#          doctl apps list
+#
+#   [ ] 10. Seed the database (one-time):
+#           psql "$DATABASE_URL" -f database/seed-scenarios.sql
+#
+#   [ ] 11. Create your facilitator account:
+#           curl -X POST https://your-domain.com/api/auth/register \
+#             -H 'Content-Type: application/json' \
+#             -d '{"username":"admin","password":"yourpassword","role":"facilitator"}'
+#
+#   After initial setup, every push to main triggers automatic deployment via CI/CD.
+#   Update with: doctl apps update <APP_ID> --spec do-app-spec.yaml
 
 name: scenario-planning
 region: nyc  # Change to your preferred region: nyc, sfo, ams, sgp, lon, fra, tor, blr, syd
