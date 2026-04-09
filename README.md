@@ -1,5 +1,34 @@
 # Interactive Scenario Planning Web Application (Game Master System)
 
+## Quick Start
+
+**Prerequisites:** [Docker 24+](https://docs.docker.com/get-docker/) with Docker Compose v2
+
+```bash
+git clone <your-repo-url> && cd sandbox
+./setup.sh
+```
+
+The setup script handles everything: generates secrets, starts all services, loads scenario data, and creates your admin account. Open **http://localhost:3000** and log in with the credentials it prints.
+
+### Common commands
+
+| Command            | Action                                      |
+|--------------------|---------------------------------------------|
+| `make setup`       | First-time setup (same as `./setup.sh`)     |
+| `make up`          | Start services                              |
+| `make down`        | Stop services                               |
+| `make logs`        | Tail all service logs                       |
+| `make status`      | Check service health                        |
+| `make test`        | Run backend tests                           |
+| `make reset`       | Wipe all data and restart fresh             |
+| `make create-admin`| Create an additional facilitator account    |
+| `make seed`        | Re-run scenario seed data                   |
+
+Run `make help` for the full list.
+
+---
+
 ## 1. System Overview
 
 The Interactive Scenario Planning Web Application is a real-time training platform for running structured decision simulations. Teams submit decisions, a deterministic scenario engine evaluates those decisions, and all participants receive synchronized state updates.
