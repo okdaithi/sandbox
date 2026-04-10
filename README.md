@@ -4,6 +4,8 @@
 
 **Prerequisites:** [Docker 24+](https://docs.docker.com/get-docker/) with Docker Compose v2
 
+> **Windows 10 users:** See the [Windows 10 Setup](#windows-10-setup) section below for WSL2 + Docker Desktop step-by-step instructions before proceeding.
+
 ```bash
 git clone <your-repo-url> && cd sandbox
 ./setup.sh
@@ -26,6 +28,227 @@ The setup script handles everything: generates secrets, starts all services, loa
 | `make seed`        | Re-run scenario seed data                   |
 
 Run `make help` for the full list.
+
+---
+
+## Windows 10 Setup
+
+> **Note for Windows users:** The standard `./setup.sh` and `make` commands require a Bash environment. This section walks you through the complete path using **WSL2 (Ubuntu) + Docker Desktop**. All commands are run inside the **Ubuntu WSL2 terminal** unless marked **[PowerShell]**.
+
+---
+
+### Step 1 — Verify Docker Desktop is using WSL2 backend
+
+1. Open **Docker Desktop**.
+2. Click the gear icon (Settings) → **General**.
+3. Confirm **"Use the WSL 2 based engine"** is ticked. If not, enable it → **Apply & Restart**.
+4. Go to Settings → **Resources → WSL Integration**.
+5. Ensure your **Ubuntu** distribution is toggled **on**. If it is not listed, open PowerShell and run:
+   ```powershell
+   wsl --list --verbose
+   ```
+   Your Ubuntu distro should appear with VERSION 2. If it shows VERSION 1, convert it:
+   ```powershell
+   wsl --set-version Ubuntu 2
+   ```
+6. Back in Docker Desktop, enable Ubuntu under WSL Integration → **Apply & Restart**.
+
+---
+
+### Step 2 — Open an Ubuntu WSL2 terminal
+
+**Option A — Windows Terminal (recommended)**
+1. Install Windows Terminal from the Microsoft Store if not already installed.
+2. Open Windows Terminal, click the **˅** dropdown arrow next to the `+` tab.
+3. Select **Ubuntu** from the list. A Bash prompt appears.
+
+**Option B — Direct launch**
+1. Press `Win + R`, type `ubuntu`, press Enter.
+2. A Bash shell opens in your WSL2 Ubuntu home directory.
+
+You will see a prompt like `yourname@HOSTNAME:~$`. All commands from Step 3 onward are run here unless marked [PowerShell].
+
+---
+
+### Step 3 — Clone the repository into the WSL2 filesystem
+
+> **Critical — do not skip this warning:** Clone inside WSL2's own Linux filesystem (`~/` or `/home/yourname/`), **not** onto the Windows filesystem (`/mnt/c/...`). Cloning onto the Windows drive causes CRLF line-ending corruption that breaks `setup.sh` with the error `$'\r': command not found`.
+
+```bash
+# In the Ubuntu WSL2 terminal
+cd ~
+git clone <your-repo-url> sandbox
+cd sandbox
+```
+
+Verify you are on the Linux filesystem:
+
+```bash
+pwd
+# Expected: /home/<yourname>/sandbox
+# If the path starts with /mnt/c/ — stop and re-clone above.
+```
+
+---
+
+### Step 4 — Check for port conflicts [PowerShell]
+
+The application uses ports **3000** (frontend), **5000** (backend), **5432** (PostgreSQL), and **6379** (Redis). Run these in a **Windows PowerShell** window to check whether any are already in use:
+
+```powershell
+netstat -ano | findstr :3000
+netstat -ano | findstr :5000
+netstat -ano | findstr :5432
+netstat -ano | findstr :6379
+```
+
+A result line means that port is occupied. Note the PID in the last column, open **Task Manager → Details**, find that PID, and end the task. Alternatively, edit `docker-compose.yml` to map a different host port (e.g. `"3001:3000"`).
+
+---
+
+### Step 5 — Run the setup script
+
+Back in the **Ubuntu WSL2 terminal**:
+
+```bash
+cd ~/sandbox
+./setup.sh
+```
+
+The script will:
+1. Confirm Docker is reachable from WSL2.
+2. Copy `.env.example` → `.env` and auto-generate strong random secrets (`JWT_SECRET`, `POSTGRES_PASSWORD`).
+3. Build and start all four Docker containers: `db`, `redis`, `backend`, `frontend`.
+4. Wait up to 120 seconds for the backend health check to pass.
+5. Prompt you for an admin **username** and **password**, then register the facilitator account.
+6. Print your app URL and login credentials.
+
+> **First-time build:** Docker downloads and compiles images. Expect **3–8 minutes** depending on internet speed. Subsequent starts are fast (under 30 seconds).
+
+If setup completes successfully you will see output similar to:
+```
+──────────────────────────────────────────
+  Setup complete!
+──────────────────────────────────────────
+
+  App URL:   http://localhost:3000
+  Username:  admin
+  Password:  <generated or entered>
+
+  API health:  http://localhost:5000/api/health
+```
+
+---
+
+### Step 6 — Open the app in your Windows browser
+
+Docker Desktop automatically forwards container ports to `localhost` on the Windows host — no special IP address or port forwarding is required.
+
+Open any Windows browser and go to:
+
+| Service | URL |
+|---|---|
+| Frontend (app) | http://localhost:3000 |
+| Backend health | http://localhost:5000/api/health |
+
+Log in with the credentials printed by `setup.sh`.
+
+---
+
+### Step 7 — Day-to-day commands
+
+Run all of these from the **Ubuntu WSL2 terminal** inside `~/sandbox`:
+
+| Command | Action |
+|---|---|
+| `make up` | Start all services |
+| `make down` | Stop all services |
+| `make logs` | Tail all service logs |
+| `make status` | Check service health |
+| `make test` | Run backend tests |
+| `make reset` | Wipe all data and restart fresh |
+| `make create-admin` | Create an additional facilitator account |
+| `make seed` | Re-run scenario seed data |
+
+**Direct Docker Compose equivalents** (no `make` required):
+
+```bash
+docker compose up -d            # start services
+docker compose down             # stop services
+docker compose logs -f          # tail logs
+docker compose ps               # service status
+docker compose up -d --build    # rebuild images and start
+docker compose down -v          # DESTRUCTIVE: stop and delete all data volumes
+```
+
+---
+
+### Step 8 — Optional: manage services from PowerShell
+
+After the initial WSL2 setup, you can start/stop services from **Windows PowerShell** because Docker Desktop adds `docker` to the Windows PATH. Open a PowerShell window in the project directory and use:
+
+```powershell
+docker compose up -d
+docker compose down
+docker compose logs -f
+docker compose ps
+```
+
+To register an admin account from PowerShell (equivalent to the `curl` command):
+
+```powershell
+Invoke-WebRequest -Uri "http://localhost:5000/api/auth/register" `
+  -Method POST `
+  -ContentType "application/json" `
+  -Body '{"username":"admin","password":"securepass123","role":"facilitator"}'
+```
+
+> **Note:** `make` commands and `./setup.sh` cannot be run in PowerShell. Use WSL2 for those.
+
+---
+
+### Troubleshooting — Common Windows Issues
+
+**"Cannot connect to the Docker daemon" in WSL2**
+Docker Desktop is not running or has not finished starting. Open Docker Desktop from the system tray, wait until it shows "Engine running", then retry.
+
+**`./setup.sh: line N: $'\r': command not found`**
+The script has Windows CRLF line endings — you cloned onto the Windows filesystem (`/mnt/c/...`). Re-clone into WSL2's own filesystem (`~/sandbox`), or convert in place:
+```bash
+sudo apt-get install -y dos2unix
+dos2unix setup.sh
+```
+
+**Port already in use (Docker bind error)**
+Run the `netstat` commands from Step 4 in PowerShell. Note the PID, end the conflicting process in Task Manager, then rerun `./setup.sh` or `docker compose up -d`.
+
+**Backend health check times out (setup hangs at "Still waiting…")**
+The first Docker build can be slow. If it times out, inspect the logs:
+```bash
+docker compose logs backend
+docker compose ps
+```
+A common cause is a corrupted or missing `.env` file. Delete `.env` and rerun `./setup.sh`.
+
+**App unreachable at localhost:3000 in Windows browser**
+Verify containers are running:
+```bash
+docker compose ps   # all four services should show "Up"
+```
+If containers are up but the browser cannot connect, check that no Windows Firewall or VPN rule is blocking port 3000.
+
+**`docker compose` not found in WSL2**
+Docker Desktop should install the Compose plugin automatically. If it is missing:
+```bash
+docker compose version   # should return a version string
+```
+If this command fails, open Docker Desktop → Settings → General, confirm WSL2 engine is enabled, then restart Docker Desktop.
+
+**Slow Docker builds (Windows Defender interference)**
+Add these paths to your antivirus / Windows Defender exclusion list:
+- `%LOCALAPPDATA%\Docker`
+- `%APPDATA%\Docker Desktop`
+- The WSL2 virtual disk: `%LOCALAPPDATA%\Packages\CanonicalGroup...\LocalState\`
 
 ---
 
@@ -185,6 +408,8 @@ Required tools:
 - **PostgreSQL client (`psql`)** for schema/seed execution.
 - **doctl CLI** for DigitalOcean deployment automation.
 
+> **Windows 10:** All prerequisite tools run inside Ubuntu WSL2. Docker Desktop for Windows satisfies the Docker requirement and bridges automatically into WSL2. For the Docker Compose path you do **not** need to install Node.js, `psql`, or `openssl` directly on Windows.
+
 ---
 
 ## 9. Local Deployment — Option A (Docker Compose, Recommended)
@@ -199,12 +424,16 @@ Required tools:
    ```bash
    cp docker/.env.example docker/.env
    ```
+   > **Windows:** Run this command in your Ubuntu WSL2 terminal. PowerShell equivalent: `Copy-Item docker\.env.example docker\.env`
+
    Edit values, especially credentials and `JWT_SECRET`.
 
 3. **Generate strong JWT secret**
    ```bash
    openssl rand -hex 64
    ```
+   > **Windows:** `openssl` is not available in native PowerShell. Run this in your WSL2 Ubuntu terminal, or use: `python3 -c "import secrets; print(secrets.token_hex(64))"`
+
    Paste output into `docker/.env` as `JWT_SECRET`.
 
 4. **Build and start all services**
