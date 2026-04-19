@@ -104,6 +104,11 @@ io.on('connection', (socket) => {
       }
 
       socket.join(`session-${sessionId}`);
+      socket.data.sessionId = sessionId;
+      socket.to(`session-${sessionId}`).emit('participant_joined', {
+        userId: socket.user?.id,
+        username: socket.user?.username
+      });
       logger.info('User joined session', { socketId: socket.id, sessionId });
     } catch (err) {
       logger.warn('join_session failed', { socketId: socket.id, err: err.message });
@@ -112,6 +117,13 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
+    const sessionId = socket.data.sessionId;
+    if (sessionId) {
+      socket.to(`session-${sessionId}`).emit('participant_left', {
+        userId: socket.user?.id,
+        username: socket.user?.username
+      });
+    }
     logger.info('User disconnected', { socketId: socket.id });
   });
 });
