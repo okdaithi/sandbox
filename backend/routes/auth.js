@@ -32,7 +32,7 @@ router.post('/login', authLimiter, loginValidation, async (req, res, next) => {
         sameSite: 'strict',
         maxAge: 8 * 60 * 60 * 1000
       })
-      .json({ user: { username: user.username, role: user.role } });
+      .json({ user: { id: user.id, username: user.username, role: user.role } });
   } catch (err) {
     next(err);
   }

@@ -6,6 +6,40 @@ const { submitDecision } = require('../services/decisionService');
 
 const router = express.Router();
 
+router.get('/', authenticateToken, async (req, res, next) => {
+  const { facilitator, scenario_id, status } = req.query;
+  try {
+    const conditions = [];
+    const values = [];
+
+    if (facilitator === 'me') {
+      values.push(req.user.id);
+      conditions.push(`s.facilitator_id = $${values.length}`);
+    }
+    if (scenario_id) {
+      values.push(scenario_id);
+      conditions.push(`s.scenario_id = $${values.length}`);
+    }
+    if (status) {
+      values.push(status);
+      conditions.push(`s.status = $${values.length}`);
+    }
+
+    const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    const result = await pool.query(
+      `SELECT s.*, sc.name AS scenario_name
+       FROM sessions s
+       JOIN scenarios sc ON sc.id = s.scenario_id
+       ${where}
+       ORDER BY s.created_at DESC`,
+      values
+    );
+    res.json(result.rows);
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.post('/', authenticateToken, createSessionValidation, async (req, res, next) => {
   const { scenario_id } = req.body;
   try {
