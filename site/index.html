@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Data Exploration Pages</title>
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+  <header>
+    <h1>Data Exploration Pages</h1>
+    <p>Charts, graphs, and interactive data views — added incrementally.</p>
+  </header>
+
+  <main>
+    <div id="grid" class="grid"></div>
+  </main>
+
+  <footer>
+    Deployed via GitHub Pages. See <code>site/README.md</code> for how to add a page.
+  </footer>
+
+  <script>
+    fetch("manifest.json")
+      .then((res) => res.json())
+      .then((pages) => {
+        const grid = document.getElementById("grid");
+        if (!pages.length) {
+          grid.innerHTML = '<div class="empty">No pages published yet.</div>';
+          return;
+        }
+        grid.innerHTML = pages
+          .map(
+            (p) => `
+            <a class="card" href="${p.file}">
+              <h2>${p.title}</h2>
+              <p>${p.description || ""}</p>
+            </a>`
+          )
+          .join("");
+      })
+      .catch(() => {
+        document.getElementById("grid").innerHTML =
+          '<div class="empty">Could not load manifest.json.</div>';
+      });
+  </script>
+</body>
+</html>
